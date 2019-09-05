@@ -9,16 +9,20 @@ from pyomo.environ import *
 from pyomo.util.infeasible import log_infeasible_constraints
 
 from data import ModelData
+from common import CommonComponents
 
 
 class UnitCommitment:
-    # Pre-processed data for model construction
-    data = ModelData()
-
     def __init__(self):
+        # Pre-processed data for model construction
+        self.data = ModelData()
+
+        # Common model components
+        self.common = CommonComponents()
+
         # Solver options
         self.keepfiles = True
-        self.solver_options = {'mip tolerances integrality': 0.01}  #
+        self.solver_options = {}  # 'mip tolerances integrality': 0.01
         self.opt = SolverFactory('cplex', solver_io='lp')
 
     def define_sets(self, m):
@@ -35,9 +39,6 @@ class UnitCommitment:
 
         # Interconnectors for which flow limits are defined
         m.L_I = Set(initialize=self.data.links_constrained)
-
-        # Scheduled generators
-        m.G_SCHEDULED = Set(initialize=self.data.scheduled_duids)
 
         # Semi-scheduled generators (e.g. wind, solar)
         m.G_SEMI_SCHEDULED = Set(initialize=self.data.semi_scheduled_duids)
@@ -149,14 +150,6 @@ class UnitCommitment:
         # Lower bound for powerflow over link
         m.POWERFLOW_MAX = Param(m.L_I, rule=powerflow_max_rule)
 
-        def emissions_intensity_rule(_m, g):
-            """Emissions intensity (tCO2/MWh)"""
-
-            return float(self.data.generators.loc[g, 'EMISSIONS'])
-
-        # Emissions intensities for all generators
-        m.EMISSIONS_RATE = Param(m.G, rule=emissions_intensity_rule)
-
         def battery_efficiency_rule(_m, g):
             """Battery efficiency"""
 
@@ -181,7 +174,7 @@ class UnitCommitment:
         m.Q_INTERVAL_END_UB = Param(m.G_STORAGE, initialize=storage_unit_interval_end_ub_rule)
 
         # Energy in battery in interval prior to model start (assume battery initially completely discharged)
-        m.Q0 = Param(m.G_STORAGE, initialize=0)
+        m.Q0 = Param(m.G_STORAGE, initialize=0, mutable=True)
 
         def marginal_cost_rule(_m, g):
             """Marginal costs for existing and candidate generators
@@ -520,7 +513,7 @@ class UnitCommitment:
                 return Constraint.Skip
 
         # Minimum on time constraint
-        m.MINIMUM_ON_TIME = Constraint(m.G_THERM, m.T, rule=minimum_on_time_rule)
+        # m.MINIMUM_ON_TIME = Constraint(m.G_THERM, m.T, rule=minimum_on_time_rule)
 
         def minimum_off_time_rule(_m, g, t):
             """Minimum number of hours generator must be off"""
@@ -541,7 +534,7 @@ class UnitCommitment:
                 return Constraint.Skip
 
         # Minimum off time constraint
-        m.MINIMUM_OFF_TIME = Constraint(m.G_THERM, m.T, rule=minimum_off_time_rule)
+        # m.MINIMUM_OFF_TIME = Constraint(m.G_THERM, m.T, rule=minimum_off_time_rule)
 
         def ramp_rate_up_rule(_m, g, t):
             """Ramp-rate up constraint - normal operation"""
@@ -555,7 +548,7 @@ class UnitCommitment:
                 return m.p[g, t] + m.r_up[g, t] - m.P0[g] <= m.RR_UP[g]
 
         # Ramp-rate up limit
-        m.RAMP_RATE_UP = Constraint(m.G_THERM, m.T, rule=ramp_rate_up_rule)
+        # m.RAMP_RATE_UP = Constraint(m.G_THERM, m.T, rule=ramp_rate_up_rule)
 
         def ramp_rate_down_rule(_m, g, t):
             """Ramp-rate down constraint - normal operation"""
@@ -569,7 +562,7 @@ class UnitCommitment:
                 return - m.p[g, t] + m.P0[g] <= m.RR_DOWN[g]
 
         # Ramp-rate up limit
-        m.RAMP_RATE_DOWN = Constraint(m.G_THERM, m.T, rule=ramp_rate_down_rule)
+        # m.RAMP_RATE_DOWN = Constraint(m.G_THERM, m.T, rule=ramp_rate_down_rule)
 
         def power_output_within_limits_rule(_m, g, t):
             """Ensure power output + reserves within capacity limits"""
@@ -805,8 +798,14 @@ class UnitCommitment:
         # Add component allowing dual variables to be imported
         m.dual = Suffix(direction=Suffix.IMPORT)
 
+        # Define sets common to both UC and MPC models
+        m = self.common.define_sets(m)
+
         # Define sets
         m = self.define_sets(m)
+
+        # Define parameters common to both UC and MPC models
+        m = self.common.define_parameters(m)
 
         # Define parameters specific to unit commitment sub-problem
         m = self.define_parameters(m)
@@ -961,7 +960,7 @@ class UnitCommitment:
         """Save solution"""
 
         # Primal objects to extract
-        primal = ['u', 'v', 'w', 'p_in', 'p_out', 'p', 'p_total', 'p_flow', 'p_V', 'r_up']
+        primal = ['u', 'v', 'w', 'p_in', 'p_out', 'q', 'p', 'p_total', 'p_flow', 'p_V', 'r_up']
 
         # Dual objects to extract
         dual = ['POWER_BALANCE']
@@ -1021,9 +1020,12 @@ class UnitCommitment:
                 m.P0[g] = previous_solution[(year, week, day)]['p'][(g, interval_map[0])]
 
             for g in m.G_STORAGE:
+                m.q[g, t].fix(previous_solution[(year, week, day)]['q'][(g, interval_map[t])])
                 m.p_in[g, t].fix(previous_solution[(year, week, day)]['p_in'][(g, interval_map[t])])
                 m.p_out[g, t].fix(previous_solution[(year, week, day)]['p_out'][(g, interval_map[t])])
                 m.r_up[g, t].fix(previous_solution[(year, week, day)]['r_up'][(g, interval_map[t])])
+
+                m.Q0[g] = previous_solution[(year, week, day)]['q'][(g, interval_map[0])]
 
             for l in m.L:
                 m.p_flow[l, t].fix(previous_solution[(year, week, day)]['p_flow'][(l, interval_map[t])])
@@ -1050,6 +1052,7 @@ class UnitCommitment:
                 m.r_up[g, t].fix()
 
             for g in m.G_STORAGE:
+                m.q[g, t].fix()
                 m.p_in[g, t].fix()
                 m.p_out[g, t].fix()
                 m.r_up[g, t].fix()
@@ -1079,6 +1082,7 @@ class UnitCommitment:
                 m.r_up[g, t].unfix()
 
             for g in m.G_STORAGE:
+                m.q[g, t].unfix()
                 m.p_in[g, t].unfix()
                 m.p_out[g, t].unfix()
                 m.r_up[g, t].unfix()
@@ -1088,6 +1092,26 @@ class UnitCommitment:
 
             for z in m.Z:
                 m.p_V[z, t].unfix()
+
+        return m
+
+    @staticmethod
+    def deactivate_fixed_constraints(m):
+        """Deactivate constraints that have all variables fixed"""
+
+        for t in range(1, 25):
+            for g in m.G_THERM:
+                # m.GENERATOR_STATE_LOGIC[g, t].deactivate()
+                # m.TOTAL_POWER_THERMAL[g, t].deactivate()
+                # m.MAX_POWER_THERMAL[g, t].deactivate()
+                pass
+
+            for g in m.G_STORAGE:
+                # m.STORAGE_ENERGY_TRANSITION[g, t].deactivate()
+                pass
+
+            # for z in m.Z:
+            #     m.POWER_BALANCE[z, t].deactivate()
 
         return m
 
@@ -1110,7 +1134,7 @@ if __name__ == '__main__':
     cleanup_pickle(output_directory)
 
     # Model parameters
-    years = [2017]
+    years = [2018]
     weeks = range(1, 53)
     days = range(1, 8)
 
@@ -1158,16 +1182,6 @@ if __name__ == '__main__':
                     break_flag = True
                     break
 
-                # # Fix variables at start of interval
-                # model = uc.fix_interval_start_test(model)
-                #
-                # # Try to re-solve model
-                # model, status_mip = uc.solve_model(model)
-                #
-                # if status_mip['Solver'][0]['Termination condition'].key != 'optimal':
-                #     break_flag = True
-                #     break
-
                 # Fix binary variables
                 model = uc.fix_binary_variables(model)
 
@@ -1183,9 +1197,6 @@ if __name__ == '__main__':
 
                 # Unfix binary variables
                 model = uc.unfix_binary_variables(model)
-
-                # Unfix variables at start of interval
-                model = uc.unfix_interval_start_test(model)
 
                 # Update rolling window counter
                 window += 1
