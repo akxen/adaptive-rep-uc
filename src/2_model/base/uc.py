@@ -1181,14 +1181,15 @@ if __name__ == '__main__':
                 # Unfix binary variables
                 model = uc.unfix_binary_variables(model)
 
-                if d == 7:
+                if (d == 7) and (w <= 51):
                     # Get cumulative scheme revenue
                     cumulative_revenue = mpc.get_cumulative_scheme_revenue(y, w + 1)
 
                     # Get updated baselines
                     mpc_results = mpc.run_baseline_updater(mpc_model, y, w, baseline_start=model.BASELINE[1].value,
                                                            revenue_start=cumulative_revenue, revenue_target=0,
-                                                           revenue_floor=0, permit_price=model.PERMIT_PRICE.value)
+                                                           revenue_floor=float(-1e6),
+                                                           permit_price=model.PERMIT_PRICE.value)
 
                     # Save MPC results
                     mpc.save_results(y, w + 1, mpc_results)

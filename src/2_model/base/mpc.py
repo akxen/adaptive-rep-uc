@@ -145,7 +145,7 @@ class MPCController:
         """Define objective function. Want to minimise changes to baseline over successive intervals."""
 
         # Minimise squared difference between baseline in successive intervals
-        m.OBJECTIVE = Objective(expr=m.BASELINE_DEVIATION)
+        m.OBJECTIVE = Objective(expr=m.BASELINE_DEVIATION, sense=minimize)
 
         return m
 
