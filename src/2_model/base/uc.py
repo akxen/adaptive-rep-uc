@@ -8,6 +8,7 @@ import pandas as pd
 from pyomo.environ import *
 from pyomo.util.infeasible import log_infeasible_constraints
 
+from mpc import MPCController
 from data import ModelData
 from common import CommonComponents
 
@@ -39,6 +40,9 @@ class UnitCommitment:
 
         # Interconnectors for which flow limits are defined
         m.L_I = Set(initialize=self.data.links_constrained)
+
+        # Scheduled generators
+        m.G_SCHEDULED = Set(initialize=self.data.scheduled_duids)
 
         # Semi-scheduled generators (e.g. wind, solar)
         m.G_SEMI_SCHEDULED = Set(initialize=self.data.semi_scheduled_duids)
@@ -798,9 +802,6 @@ class UnitCommitment:
         # Add component allowing dual variables to be imported
         m.dual = Suffix(direction=Suffix.IMPORT)
 
-        # Define sets common to both UC and MPC models
-        m = self.common.define_sets(m)
-
         # Define sets
         m = self.define_sets(m)
 
@@ -988,7 +989,7 @@ class UnitCommitment:
         return results
 
     @staticmethod
-    def fix_interval_start(m, year, week, day, output_dir):
+    def fix_interval_overlap(m, year, week, day, overlap, output_dir):
         """Fix variables at the start of a given dispatch interval based on the solution of the preceding interval"""
 
         if day == 1:
@@ -1001,13 +1002,12 @@ class UnitCommitment:
         previous_solution = pd.read_pickle(os.path.join(output_dir, f'interval_{year}_{week}_{day}.pickle'))
 
         # Map time index between beginning of current day and end of preceding interval
-        interval_map = {i: 24 + i for i in range(0, 25)}
+        interval_map = {i: 24 + i for i in range(0, overlap + 1)}
 
         # Fix variables to values obtained in preceding interval
-        for t in range(1, 25):
+        for t in range(1, overlap + 1):
             for g in m.G.difference(m.G_STORAGE, m.G_THERM):
                 m.p_total[g, t].fix(previous_solution[(year, week, day)]['p_total'][(g, interval_map[t])])
-                # pass
 
             for g in m.G_THERM:
                 m.u[g, t].fix(previous_solution[(year, week, day)]['u'][(g, interval_map[t])])
@@ -1036,13 +1036,13 @@ class UnitCommitment:
         return m
 
     @staticmethod
-    def fix_interval_start_test(m):
-        """Fix variables for overlap period. See if re-solve is possible with variables fixed."""
+    def fix_interval(m, start, end):
+        """Fix all variables for a defined interval"""
 
-        for t in range(1, 25):
+        # Fix variables to values obtained in preceding interval
+        for t in range(start, end + 1):
             for g in m.G.difference(m.G_STORAGE, m.G_THERM):
                 m.p_total[g, t].fix()
-                # pass
 
             for g in m.G_THERM:
                 m.u[g, t].fix()
@@ -1066,13 +1066,13 @@ class UnitCommitment:
         return m
 
     @staticmethod
-    def unfix_interval_start_test(m):
-        """Fix variables for overlap period. See if re-solve is possible with variables fixed."""
+    def unfix_interval(m, start, end):
+        """Fix all variables for a defined interval"""
 
-        for t in range(1, 25):
+        # Fix variables to values obtained in preceding interval
+        for t in range(start, end + 1):
             for g in m.G.difference(m.G_STORAGE, m.G_THERM):
                 m.p_total[g, t].unfix()
-                # pass
 
             for g in m.G_THERM:
                 m.u[g, t].unfix()
@@ -1095,26 +1095,6 @@ class UnitCommitment:
 
         return m
 
-    @staticmethod
-    def deactivate_fixed_constraints(m):
-        """Deactivate constraints that have all variables fixed"""
-
-        for t in range(1, 25):
-            for g in m.G_THERM:
-                # m.GENERATOR_STATE_LOGIC[g, t].deactivate()
-                # m.TOTAL_POWER_THERMAL[g, t].deactivate()
-                # m.MAX_POWER_THERMAL[g, t].deactivate()
-                pass
-
-            for g in m.G_STORAGE:
-                # m.STORAGE_ENERGY_TRANSITION[g, t].deactivate()
-                pass
-
-            # for z in m.Z:
-            #     m.POWER_BALANCE[z, t].deactivate()
-
-        return m
-
 
 def cleanup_pickle(directory):
     """Delete pickle files in a directory"""
@@ -1131,18 +1111,28 @@ if __name__ == '__main__':
     output_directory = os.path.join(os.path.dirname(__file__), os.path.pardir, 'output')
 
     # Cleanup pickle files in output directory
-    cleanup_pickle(output_directory)
+    # cleanup_pickle(output_directory)
 
     # Model parameters
     years = [2018]
     weeks = range(1, 53)
     days = range(1, 8)
+    interval_overlap = 24
 
-    # Initialise object used to construct model
+    # Initialise object used to construct Unit Commitment model
     uc = UnitCommitment()
+
+    # Initialise object used to construct MPC baseline updater
+    mpc = MPCController()
+
+    # MPC model
+    mpc_model = mpc.construct_model()
 
     # Construct model object
     model = uc.construct_model()
+
+    # Initialise permit price
+    model.PERMIT_PRICE = float(40)
 
     # Counter for model windows
     window = 1
@@ -1166,14 +1156,7 @@ if __name__ == '__main__':
 
                 if window != 1:
                     # Fix interval start using solution from previous window
-                    model = uc.fix_interval_start(model, y, w, d, output_directory)
-
-                # Update policy parameters (weekly)
-                if d == 1:
-                    # Run MPC algorithm
-
-                    # Update policy parameters
-                    pass
+                    model = uc.fix_interval_overlap(model, y, w, d, interval_overlap, output_directory)
 
                 # Solve model
                 model, status_mip = uc.solve_model(model)
@@ -1197,6 +1180,55 @@ if __name__ == '__main__':
 
                 # Unfix binary variables
                 model = uc.unfix_binary_variables(model)
+
+                if d == 7:
+                    # Get cumulative scheme revenue
+                    cumulative_revenue = mpc.get_cumulative_scheme_revenue(y, w + 1)
+
+                    # Get updated baselines
+                    mpc_results = mpc.run_baseline_updater(mpc_model, y, w, baseline_start=model.BASELINE[1].value,
+                                                           revenue_start=cumulative_revenue, revenue_target=0,
+                                                           revenue_floor=0, permit_price=model.PERMIT_PRICE.value)
+
+                    # Save MPC results
+                    mpc.save_results(y, w + 1, mpc_results)
+
+                    # Update baseline (starting at beginning of following day)
+                    for h in [t for t in model.T if t > 24]:
+                        model.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
+
+                    # Fix variables up until end of day (beginning of overlap period for next day)
+                    model = uc.fix_interval(model, start=1, end=25)
+
+                    # Re-run model (MILP)
+                    model, status_mip = uc.solve_model(model)
+
+                    if status_mip['Solver'][0]['Termination condition'].key != 'optimal':
+                        break_flag = True
+                        break
+
+                    # Fix all binary variables
+                    model = uc.fix_binary_variables(model)
+
+                    # Re-run model (LP) to solve for prices
+                    model, status_lp = uc.solve_model(model)
+
+                    if status_lp['Solver'][0]['Termination condition'].key != 'optimal':
+                        break_flag = True
+                        break
+
+                    # Save solution (updates previously saved solution for this interval)
+                    solution = uc.save_solution(model, y, w, d, output_directory)
+
+                    # Unfix binary variables
+                    model = uc.unfix_binary_variables(model)
+
+                    # Unfix remaining variables
+                    model = uc.unfix_interval(model, start=1, end=25)
+
+                    # All intervals = baseline obtained from MPC model
+                    for h in model.T:
+                        model.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
                 # Update rolling window counter
                 window += 1
