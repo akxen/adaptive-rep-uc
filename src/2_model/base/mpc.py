@@ -33,7 +33,7 @@ class MPCController:
         m.G = Set(initialize=self.data.scheduled_duids)
 
         # Calibration intervals
-        m.C = RangeSet(1, 6, ordered=True)
+        m.C = RangeSet(1, 1, ordered=True)
 
         return m
 
@@ -113,6 +113,15 @@ class MPCController:
         # Squared baseline deviation
         m.BASELINE_DEVIATION = Expression(rule=baseline_deviation_rule)
 
+        def revenue_deviation_rule(_m):
+            """Squared revenue deviation between successive intervals"""
+
+            return sum((m.REVENUE_START + m.CUMULATIVE_REVENUE[c] - m.REVENUE_TARGET)
+                       * (m.REVENUE_START + m.CUMULATIVE_REVENUE[c] - m.REVENUE_TARGET) for c in m.C)
+
+        # Squared revenue deviation over all calibration intervals
+        m.REVENUE_DEVIATION = Expression(rule=revenue_deviation_rule)
+
         return m
 
     @staticmethod
@@ -123,20 +132,18 @@ class MPCController:
             """Ensure expected scheme revenue = target at end of calibration interval"""
 
             # Expected revenue over all calibration intervals
-            revenue = sum(m.GENERATOR_REVENUE[g, c] for g in m.G for c in m.C)
-
-            return m.REVENUE_START + revenue == m.REVENUE_TARGET
+            return m.REVENUE_START + sum(m.GENERATOR_REVENUE[g, c] for g in m.G for c in m.C) == m.REVENUE_TARGET
 
         # Revenue target
         m.REVENUE_TARGET_CONS = Constraint(rule=revenue_target_rule)
 
-        def revenue_lower_bound_rule(_m, i):
+        def revenue_lower_bound_rule(_m, c):
             """Ensure revenue does not breach a lower bound over any calibration interval"""
 
-            return m.REVENUE_START + sum(m.INTERVAL_REVENUE[c] for c in m.C if c <= i) >= m.REVENUE_FLOOR
+            return m.REVENUE_START + sum(m.INTERVAL_REVENUE[i] for i in m.C if i <= c) >= m.REVENUE_FLOOR
 
         # Ensure revenue never goes below floor
-        m.REVENUE_FLOOR_CONS = Constraint(m.C, rule=revenue_lower_bound_rule)
+        # m.REVENUE_FLOOR_CONS = Constraint(m.C, rule=revenue_lower_bound_rule)
 
         return m
 
@@ -274,19 +281,30 @@ class MPCController:
     def get_week_demand_forecast(self, year, week):
         """Simple demand forecast. Use value of demand for corresponding week of previous year"""
 
-        # Demand in a given year
-        demand = sum(sum(v.values()) for k, v in self.data.demand.items() if (k[0] == year-1) and (k[1] == week))
+        # Demand for a given week - based on demand for same week of previous year
+        # demand = sum(self.data.demand[(year-1, week, d)][(z, t)] for d in range(1, 8) for z in self.data.nem_zones
+        #              for t in range(1, 24))
+
+        # Demand for a given week - based on demand of previous week
+        demand = sum(self.data.demand[(year, week-1, d)][(z, t)] for d in range(1, 8) for z in self.data.nem_zones
+                     for t in range(1, 25))
 
         return demand
 
     def get_week_generator_energy_forecast(self, year, week, n_intervals):
-        """Based on proportion of energy output in last period, forecast generator energy output in future intervals"""
+        """
+        Based on proportion of energy output in last period, forecast generator energy output in future intervals.
+        Week refers to the beginning of the week for which the forecast applies.
+        """
 
         # Get proportion of total output produced by each generator for a given week
-        generation_prop = self.get_generator_week_energy_proportion(year, week)
+        generation_prop = self.get_generator_week_energy_proportion(year, week-1)
 
-        # Get demand forecast over the next 'n' intervals
-        demand_forecast = {i: self.get_week_demand_forecast(year, week + i) for i in range(1, n_intervals + 1)}
+        # Get demand forecast over the next 'n' intervals - based on demand for same week of previous year
+        # demand_forecast = {i: self.get_week_demand_forecast(year, week + i) for i in range(1, n_intervals + 1)}
+
+        # TODO: Persistence-based forecast. Assume demand last week same for next n_intervals
+        demand_forecast = {i: self.get_week_demand_forecast(year, week) for i in range(1, n_intervals + 1)}
 
         # Generator energy forecast over 'n' future intervals
         generator_forecast = {}
@@ -319,7 +337,8 @@ class MPCController:
         results = {'baseline_trajectory': m.baseline.get_values(),
                    'parameters': parameters,
                    'interval_revenue': {k: v.expr() for k, v in m.INTERVAL_REVENUE.items()},
-                   'cumulative_revenue': {k: v.expr() for k, v in m.CUMULATIVE_REVENUE.items()}}
+                   'cumulative_revenue': {k: v.expr() for k, v in m.CUMULATIVE_REVENUE.items()},
+                   'energy_forecast': {k: v.value for k, v in m.ENERGY_FORECAST.items()}}
 
         return results
 

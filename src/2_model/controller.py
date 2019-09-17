@@ -4,8 +4,6 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), 'base'))
 
-import pandas as pd
-
 from base.uc import UnitCommitment
 
 
@@ -17,6 +15,7 @@ if __name__ == '__main__':
     years = [2017]
     weeks = range(1, 53)
     days = range(1, 8)
+    overlap = 17
 
     # Initialise object used to construct model
     uc = UnitCommitment()
@@ -46,7 +45,7 @@ if __name__ == '__main__':
 
                 if window != 1:
                     # Fix interval start using solution from previous window
-                    model = uc.fix_interval_start(model, year, week, day, output_directory)
+                    model = uc.fix_interval_overlap(model, year, week, day, overlap, output_directory)
 
                 # Update policy parameters (weekly)
                 if day == 1:

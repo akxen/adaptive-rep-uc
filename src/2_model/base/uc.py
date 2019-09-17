@@ -496,8 +496,6 @@ class UnitCommitment:
         # Unit operating state
         m.GENERATOR_STATE_LOGIC = Constraint(m.G_THERM, m.T, rule=generator_state_logic_rule)
 
-
-
         def minimum_on_time_rule(_m, g, t):
             """Minimum number of hours generator must be on"""
 
@@ -517,7 +515,7 @@ class UnitCommitment:
                 return Constraint.Skip
 
         # Minimum on time constraint
-        # m.MINIMUM_ON_TIME = Constraint(m.G_THERM, m.T, rule=minimum_on_time_rule)
+        m.MINIMUM_ON_TIME = Constraint(m.G_THERM, m.T, rule=minimum_on_time_rule)
 
         def minimum_off_time_rule(_m, g, t):
             """Minimum number of hours generator must be off"""
@@ -538,7 +536,7 @@ class UnitCommitment:
                 return Constraint.Skip
 
         # Minimum off time constraint
-        # m.MINIMUM_OFF_TIME = Constraint(m.G_THERM, m.T, rule=minimum_off_time_rule)
+        m.MINIMUM_OFF_TIME = Constraint(m.G_THERM, m.T, rule=minimum_off_time_rule)
 
         def ramp_rate_up_rule(_m, g, t):
             """Ramp-rate up constraint - normal operation"""
@@ -552,7 +550,7 @@ class UnitCommitment:
                 return m.p[g, t] + m.r_up[g, t] - m.P0[g] <= m.RR_UP[g]
 
         # Ramp-rate up limit
-        # m.RAMP_RATE_UP = Constraint(m.G_THERM, m.T, rule=ramp_rate_up_rule)
+        m.RAMP_RATE_UP = Constraint(m.G_THERM, m.T, rule=ramp_rate_up_rule)
 
         def ramp_rate_down_rule(_m, g, t):
             """Ramp-rate down constraint - normal operation"""
@@ -566,7 +564,7 @@ class UnitCommitment:
                 return - m.p[g, t] + m.P0[g] <= m.RR_DOWN[g]
 
         # Ramp-rate up limit
-        # m.RAMP_RATE_DOWN = Constraint(m.G_THERM, m.T, rule=ramp_rate_down_rule)
+        m.RAMP_RATE_DOWN = Constraint(m.G_THERM, m.T, rule=ramp_rate_down_rule)
 
         def power_output_within_limits_rule(_m, g, t):
             """Ensure power output + reserves within capacity limits"""
@@ -1111,13 +1109,14 @@ if __name__ == '__main__':
     output_directory = os.path.join(os.path.dirname(__file__), os.path.pardir, 'output')
 
     # Cleanup pickle files in output directory
-    # cleanup_pickle(output_directory)
+    cleanup_pickle(output_directory)
 
     # Model parameters
     years = [2018]
     weeks = range(1, 53)
     days = range(1, 8)
-    interval_overlap = 24
+    interval_overlap = 17
+    baseline_start = 1
 
     # Initialise object used to construct Unit Commitment model
     uc = UnitCommitment()
@@ -1133,6 +1132,10 @@ if __name__ == '__main__':
 
     # Initialise permit price
     model.PERMIT_PRICE = float(40)
+
+    # Initial emissions intensity baseline
+    for t in model.T:
+        model.BASELINE[t] = float(baseline_start)
 
     # Counter for model windows
     window = 1
@@ -1186,7 +1189,7 @@ if __name__ == '__main__':
                     cumulative_revenue = mpc.get_cumulative_scheme_revenue(y, w + 1)
 
                     # Get updated baselines
-                    mpc_results = mpc.run_baseline_updater(mpc_model, y, w, baseline_start=model.BASELINE[1].value,
+                    mpc_results = mpc.run_baseline_updater(mpc_model, y, w + 1, baseline_start=model.BASELINE[1].value,
                                                            revenue_start=cumulative_revenue, revenue_target=0,
                                                            revenue_floor=float(-1e6),
                                                            permit_price=model.PERMIT_PRICE.value)
@@ -1195,11 +1198,11 @@ if __name__ == '__main__':
                     mpc.save_results(y, w + 1, mpc_results)
 
                     # Update baseline (starting at beginning of following day)
-                    for h in [t for t in model.T if t > 24]:
+                    for h in [t for t in model.T if t > interval_overlap]:
                         model.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
                     # Fix variables up until end of day (beginning of overlap period for next day)
-                    model = uc.fix_interval(model, start=1, end=25)
+                    model = uc.fix_interval(model, start=1, end=interval_overlap)
 
                     # Re-run model (MILP)
                     model, status_mip = uc.solve_model(model)
@@ -1225,7 +1228,7 @@ if __name__ == '__main__':
                     model = uc.unfix_binary_variables(model)
 
                     # Unfix remaining variables
-                    model = uc.unfix_interval(model, start=1, end=25)
+                    model = uc.unfix_interval(model, start=1, end=interval_overlap)
 
                     # All intervals = baseline obtained from MPC model
                     for h in model.T:
