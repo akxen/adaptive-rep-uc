@@ -271,12 +271,24 @@ class MPCController:
         df_c = pd.concat(dfs)
 
         # Total energy output over week
-        total_energy_output = df_c.groupby('week').sum().sum(axis=1).values[0]
+        # total_energy_output = df_c.groupby('week').sum().sum(axis=1).values[0]
+
+        # Total energy demand for a given week
+        total_demand = self.get_week_demand(year, week)
 
         # Proportion of energy delivered from each generator
-        energy_output_proportion = df_c.sum().div(total_energy_output).to_dict()
+        energy_output_proportion = df_c.sum().div(total_demand).to_dict()
 
         return energy_output_proportion
+
+    def get_week_demand(self, year, week):
+        """Get total energy demand for a given week"""
+
+        # Demand for a given week - based on demand of previous week
+        demand = sum(self.data.demand[(year, week, d)][(z, t)] for d in range(1, 8) for z in self.data.nem_zones
+                     for t in range(1, 25))
+
+        return demand
 
     def get_week_demand_forecast(self, year, week):
         """Simple demand forecast. Use value of demand for corresponding week of previous year"""

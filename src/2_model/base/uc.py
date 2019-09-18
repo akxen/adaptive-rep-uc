@@ -1098,7 +1098,7 @@ def cleanup_pickle(directory):
     """Delete pickle files in a directory"""
 
     # Pickle files
-    files = [f for f in os.listdir(directory) if '.pickle' in f]
+    files = [f for f in os.listdir(directory) if ('.pickle' in f) and (('interval' in f) or ('mpc' in f))]
 
     for f in files:
         os.remove(os.path.join(directory, f))
