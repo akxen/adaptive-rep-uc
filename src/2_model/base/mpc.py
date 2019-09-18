@@ -226,34 +226,6 @@ class MPCController:
 
         return m
 
-    def load_interval_results(self, year, week, day):
-        """Load results for a given interval"""
-
-        with open(os.path.join(self.output_dir, f'interval_{year}_{week}_{day}.pickle'), 'rb') as f:
-            results = pickle.load(f)
-
-        return results
-
-    def get_generator_interval_results(self, var_id, year, week, day):
-        """Get results relating to a given generator. Index should be (generator, hour)."""
-
-        # Load results
-        results = self.load_interval_results(year, week, day)
-
-        # Convert to series
-        s = pd.Series(results[(year, week, day)][var_id])
-
-        # Rename axes
-        df = s.rename_axis(['generator', 'hour']).rename(var_id)
-
-        # Reset index, pivot and only take first 24 hours. Remaining sequence will overlap with next day.
-        df = df.reset_index().pivot(index='hour', columns='generator', values=var_id).loc[1:24]
-
-        # Add interval ID to results DataFrame
-        df = pd.concat([df], keys=[(year, week, day)], names=['year', 'week', 'day'])
-
-        return df
-
     def get_generator_week_energy_proportion(self, year, week):
         """Get proportion of energy output from each generator for a given week"""
 
@@ -269,9 +241,6 @@ class MPCController:
 
         # Concatenate DataFrames
         df_c = pd.concat(dfs)
-
-        # Total energy output over week
-        # total_energy_output = df_c.groupby('week').sum().sum(axis=1).values[0]
 
         # Total energy demand for a given week
         total_demand = self.get_week_demand(year, week)
@@ -292,10 +261,6 @@ class MPCController:
 
     def get_week_demand_forecast(self, year, week):
         """Simple demand forecast. Use value of demand for corresponding week of previous year"""
-
-        # Demand for a given week - based on demand for same week of previous year
-        # demand = sum(self.data.demand[(year-1, week, d)][(z, t)] for d in range(1, 8) for z in self.data.nem_zones
-        #              for t in range(1, 24))
 
         # Demand for a given week - based on demand of previous week
         demand = sum(self.data.demand[(year, week-1, d)][(z, t)] for d in range(1, 8) for z in self.data.nem_zones

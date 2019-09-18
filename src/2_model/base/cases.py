@@ -100,11 +100,15 @@ if __name__ == '__main__':
                     # Get cumulative scheme revenue
                     cumulative_revenue = mpc.get_cumulative_scheme_revenue(y, w + 1)
 
+                    # Get generator energy forecast for following calibration intervals
+                    energy_forecast = forecast.get_energy_forecast_persistence()
+
                     # Get updated baselines
                     mpc_results = mpc.run_baseline_updater(mpc_model, y, w + 1, baseline_start=model.BASELINE[1].value,
                                                            revenue_start=cumulative_revenue, revenue_target=0,
                                                            revenue_floor=float(-1e6),
-                                                           permit_price=model.PERMIT_PRICE.value)
+                                                           permit_price=model.PERMIT_PRICE.value,
+                                                           energy_forecast=energy_forecast)
 
                     # Save MPC results
                     mpc.save_results(y, w + 1, mpc_results)
