@@ -65,10 +65,10 @@ class ModelData:
         self.powerflow_limits = self.get_link_powerflow_limits()
 
         # Demand traces for each day
-        self.demand = pd.read_pickle(os.path.join(self.traces_dir, 'demand_49.pickle'))
+        self.demand = pd.read_pickle(os.path.join(self.traces_dir, 'demand_42.pickle'))
 
         # Dispatch traces for each day
-        self.dispatch = pd.read_pickle(os.path.join(self.traces_dir, 'dispatch_49.pickle'))
+        self.dispatch = pd.read_pickle(os.path.join(self.traces_dir, 'dispatch_42.pickle'))
 
     def get_minimum_reserve_levels(self):
         """Minimum reserve levels for each NEM region"""

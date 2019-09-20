@@ -41,7 +41,7 @@ def load_data(table, use_cache=False, cache_dir=os.path.join(os.path.dirname(__f
     return df
 
 
-def get_dispatch_data(use_cache=True):
+def get_dispatch_data(overlap, use_cache=True):
     """Convert DataFrame to hourly resolution"""
 
     # Load dispatch unit SCADA data for 2017 and 2018
@@ -56,22 +56,18 @@ def get_dispatch_data(use_cache=True):
     # Add year, week, day
     calendar = df_r.apply(lambda x: pd.Series(x.name.isocalendar(), index=['year', 'week', 'day']), axis=1)
 
-    # For each day find the first timestamp
+    # For each day find the first timestamp. Note: +1 because want to include t_0 (used for initialisation).
     intervals = (calendar.groupby(['year', 'week', 'day'])
-                 .apply(lambda x: pd.date_range(start=x.index.min(), periods=49, freq='1h')))
+                 .apply(lambda x: pd.date_range(start=x.index.min(), periods=24 + overlap + 1, freq='1h')))
 
     # Dispatch information for each generator
     dispatch = (intervals.map(lambda x: df_r.reindex(x).reset_index().drop('index', axis=1).T.stack()
                               .to_dict()).to_dict())
 
-    # Save results
-    with open(os.path.join(os.path.dirname(__file__), 'output', 'dispatch.pickle'), 'wb') as f:
-        pickle.dump(dispatch, f)
-
     return dispatch
 
 
-def get_demand_data(use_cache=True):
+def get_demand_data(overlap, use_cache=True):
     """Get demand data for each NEM zone"""
 
     # Load demand data for 2017 and 2018
@@ -98,7 +94,7 @@ def get_demand_data(use_cache=True):
 
     # For each day find the first timestamp
     intervals = (calendar.groupby(['year', 'week', 'day'])
-                 .apply(lambda x: pd.date_range(start=x.index.min(), periods=49, freq='1h')))
+                 .apply(lambda x: pd.date_range(start=x.index.min(), periods=24 + overlap + 1, freq='1h')))
 
     # Dispatch information for each generator
     demand = (intervals.map(lambda x: df_d.reindex(x).reset_index().drop('index', axis=1).T.stack()
@@ -108,12 +104,15 @@ def get_demand_data(use_cache=True):
 
 
 if __name__ == '__main__':
+    # Interval overlap
+    interval_overlap = 17
+
     # Dispatch data
-    dispatch_data = get_dispatch_data(use_cache=True)
-    with open(os.path.join(os.path.dirname(__file__), 'output', 'dispatch_49.pickle'), 'wb') as f:
+    dispatch_data = get_dispatch_data(interval_overlap, use_cache=True)
+    with open(os.path.join(os.path.dirname(__file__), 'output', f'dispatch_{24+interval_overlap+1}.pickle'), 'wb') as f:
         pickle.dump(dispatch_data, f)
 
     # Demand data
-    demand_data = get_demand_data(use_cache=True)
-    with open(os.path.join(os.path.dirname(__file__), 'output', 'demand_49.pickle'), 'wb') as f:
+    demand_data = get_demand_data(interval_overlap, use_cache=True)
+    with open(os.path.join(os.path.dirname(__file__), 'output', f'demand_{24+interval_overlap+1}.pickle'), 'wb') as f:
         pickle.dump(demand_data, f)

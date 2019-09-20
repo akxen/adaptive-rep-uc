@@ -4,6 +4,8 @@ import os
 
 from uc import UnitCommitment
 from mpc import MPCController
+from forecast import Forecast
+from analysis import AnalyseResults
 
 
 def cleanup_pickle(directory):
@@ -14,6 +16,46 @@ def cleanup_pickle(directory):
 
     for f in files:
         os.remove(os.path.join(directory, f))
+
+
+def run_solve_sequence(m):
+    """Run UC solve sequence
+
+    Parameters
+    ----------
+    m : pyomo model
+        Unit commitment model object
+
+    Returns
+    -------
+    m : pyomo model
+        Unit commitment model object after applying solver
+
+    flag : bool
+        Break flag. If 'True' model is infeasible.
+    """
+
+    # Solve model
+    m, status_mip = uc.solve_model(m)
+
+    if status_mip['Solver'][0]['Termination condition'].key != 'optimal':
+        flag = True
+        return m, flag
+
+    # Fix binary variables
+    m = uc.fix_binary_variables(m)
+
+    # Re-solve to obtain prices
+    m, status_lp = uc.solve_model(m)
+
+    if status_lp['Solver'][0]['Termination condition'].key != 'optimal':
+        flag = True
+        return m, flag
+
+    # Break flag
+    flag = False
+
+    return m, flag
 
 
 if __name__ == '__main__':
@@ -27,32 +69,33 @@ if __name__ == '__main__':
     years = [2018]
     weeks = range(1, 53)
     days = range(1, 8)
-    interval_overlap = 17
+    overlap_intervals = 17
+    calibration_intervals = 1
+    scenarios = 1
+
     baseline_start = 1
 
-    # Initialise object used to construct Unit Commitment model
+    # Unit commitment and MPC model objects
     uc = UnitCommitment()
-
-    # Initialise object used to construct MPC baseline updater
     mpc = MPCController()
 
-    # MPC model
-    mpc_model = mpc.construct_model()
+    # Objects used to generate forecasts for MPC updating model and analyse model results
+    forecast = Forecast()
+    analysis = AnalyseResults()
 
-    # Construct model object
-    model = uc.construct_model()
+    # Construct UC and MPC models
+    m_uc = uc.construct_model(overlap_intervals)
+    m_mpc = mpc.construct_model(eligible_generators=m_uc.G_THERM, n_intervals=calibration_intervals,
+                                n_scenarios=scenarios)
 
-    # Initialise permit price
-    model.PERMIT_PRICE = float(40)
+    # Initialise policy parameters (baseline and permit price)
+    m_uc.PERMIT_PRICE = float(40)
 
-    # Initial emissions intensity baseline
-    for t in model.T:
-        model.BASELINE[t] = float(baseline_start)
+    for t in m_uc.T:
+        m_uc.BASELINE[t] = float(baseline_start)
 
-    # Counter for model windows
+    # Counter for model windows, and flag used to break loop if model is infeasible
     window = 1
-
-    # r = pd.read_pickle(os.path.join(output_directory, f'interval_{2017}_{1}_{5}.pickle'))
     break_flag = False
 
     for y in years:
@@ -67,88 +110,76 @@ if __name__ == '__main__':
                 print(f'Running window {window}: year={y}, week={w}, day={d}')
 
                 # Update model parameters for a given day
-                model = uc.update_parameters(model, y, w, d)
+                m_uc = uc.update_parameters(m_uc, y, w, d)
 
                 if window != 1:
                     # Fix interval start using solution from previous window
-                    model = uc.fix_interval_overlap(model, y, w, d, interval_overlap, output_directory)
+                    m_uc = uc.fix_interval_overlap(m_uc, y, w, d, overlap_intervals, output_directory)
 
-                # Solve model
-                model, status_mip = uc.solve_model(model)
+                # Run solve sequence. First solve MILP, then fix integer variables and re-solve to obtain prices.
+                m_uc, break_flag = run_solve_sequence(m_uc)
 
-                if status_mip['Solver'][0]['Termination condition'].key != 'optimal':
-                    break_flag = True
-                    break
-
-                # Fix binary variables
-                model = uc.fix_binary_variables(model)
-
-                # Re-solve to obtain prices
-                model, status_lp = uc.solve_model(model)
-
-                if status_lp['Solver'][0]['Termination condition'].key != 'optimal':
-                    break_flag = True
+                # Break loop if model is infeasible
+                if break_flag:
                     break
 
                 # Save solution
-                solution = uc.save_solution(model, y, w, d, output_directory)
+                solution = uc.save_solution(m_uc, y, w, d, output_directory)
 
                 # Unfix binary variables
-                model = uc.unfix_binary_variables(model)
+                m_uc = uc.unfix_binary_variables(m_uc)
 
                 if (d == 7) and (w <= 51):
                     # Get cumulative scheme revenue
-                    cumulative_revenue = mpc.get_cumulative_scheme_revenue(y, w + 1)
+                    cumulative_revenue = analysis.get_cumulative_scheme_revenue(output_directory, y, w + 1)
 
                     # Get generator energy forecast for following calibration intervals
-                    energy_forecast = forecast.get_energy_forecast_persistence()
+                    energy_forecast, probabilities = forecast.get_energy_forecast_persistence(
+                        output_dir=output_directory,
+                        year=y,
+                        week=w + 1,
+                        n_intervals=calibration_intervals,
+                        eligible_generators=m_mpc.G)
 
                     # Get updated baselines
-                    mpc_results = mpc.run_baseline_updater(mpc_model, y, w + 1, baseline_start=model.BASELINE[1].value,
-                                                           revenue_start=cumulative_revenue, revenue_target=0,
+                    mpc_results = mpc.run_baseline_updater(m_mpc, y, w + 1,
+                                                           baseline_start=m_uc.BASELINE[1].value,
+                                                           revenue_start=cumulative_revenue,
+                                                           revenue_target=0,
                                                            revenue_floor=float(-1e6),
-                                                           permit_price=model.PERMIT_PRICE.value,
-                                                           energy_forecast=energy_forecast)
+                                                           permit_price=m_uc.PERMIT_PRICE.value,
+                                                           energy_forecast=energy_forecast,
+                                                           scenario_probabilities=probabilities)
 
                     # Save MPC results
                     mpc.save_results(y, w + 1, mpc_results)
 
                     # Update baseline (starting at beginning of following day)
-                    for h in [t for t in model.T if t > interval_overlap]:
-                        model.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
+                    for h in [t for t in m_uc.T if t > 24]:
+                        m_uc.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
                     # Fix variables up until end of day (beginning of overlap period for next day)
-                    model = uc.fix_interval(model, start=1, end=interval_overlap)
+                    m_uc = uc.fix_interval(m_uc, start=1, end=24)
 
-                    # Re-run model (MILP)
-                    model, status_mip = uc.solve_model(model)
+                    # Run solve sequence. First solve MILP, then fix integer variables and re-solve to obtain prices.
+                    m_uc, break_flag = run_solve_sequence(m_uc)
 
-                    if status_mip['Solver'][0]['Termination condition'].key != 'optimal':
-                        break_flag = True
-                        break
-
-                    # Fix all binary variables
-                    model = uc.fix_binary_variables(model)
-
-                    # Re-run model (LP) to solve for prices
-                    model, status_lp = uc.solve_model(model)
-
-                    if status_lp['Solver'][0]['Termination condition'].key != 'optimal':
-                        break_flag = True
+                    # Break loop if model is infeasible
+                    if break_flag:
                         break
 
                     # Save solution (updates previously saved solution for this interval)
-                    solution = uc.save_solution(model, y, w, d, output_directory)
+                    solution = uc.save_solution(m_uc, y, w, d, output_directory)
 
                     # Unfix binary variables
-                    model = uc.unfix_binary_variables(model)
+                    m_uc = uc.unfix_binary_variables(m_uc)
 
                     # Unfix remaining variables
-                    model = uc.unfix_interval(model, start=1, end=interval_overlap)
+                    m_uc = uc.unfix_interval(m_uc, start=1, end=24)
 
-                    # All intervals = baseline obtained from MPC model
-                    for h in model.T:
-                        model.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
+                    # All intervals = baseline obtained from MPC model in preparation for next iteration.
+                    for h in m_uc.T:
+                        m_uc.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
                 # Update rolling window counter
                 window += 1

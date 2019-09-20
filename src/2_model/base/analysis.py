@@ -66,21 +66,22 @@ class AnalyseResults:
         return baselines
 
     @staticmethod
-    def get_cumulative_scheme_revenue(output_dir):
-        """Get baselines over model horizon"""
+    def get_cumulative_scheme_revenue(output_dir, year, week):
+        """Compute cumulative scheme revenue. Net revenue at the start of 'week'."""
 
-        files = [f for f in os.listdir(output_dir) if 'mpc_' in f]
+        files = [f for f in os.listdir(output_dir) if 'interval_' in f]
 
-        cumulative_revenue = {}
+        cumulative_revenue = 0
 
         for f in files:
-            year, week = int(f.split('_')[1]), int(f.split('_')[2].replace('.pickle', ''))
+            y, w, d = int(f.split('_')[1]), int(f.split('_')[2]), int(f.split('_')[3].replace('.pickle', ''))
 
-            with open(os.path.join(output_dir, f), 'rb') as g:
-                results = pickle.load(g)
+            if (y <= year) and (w < week):
+                with open(os.path.join(output_dir, f), 'rb') as g:
+                    results = pickle.load(g)
 
-            # Add baseline to container
-            cumulative_revenue[(year, week)] = results['parameters']['revenue_start']
+                # Update cumulative scheme revenue
+                cumulative_revenue += results[(y, w, d)]['DAY_SCHEME_REVENUE']
 
         return cumulative_revenue
 
@@ -120,43 +121,41 @@ class AnalyseResults:
 
 if __name__ == '__main__':
     # Directory containing output files
-    output_directory = os.path.join(os.path.dirname(__file__), os.path.pardir, '2_model', 'output')
+    output_directory = os.path.join(os.path.dirname(__file__), os.path.pardir, 'output')
 
     # Class used to analysis and process model results
     analysis = AnalyseResults()
 
-    # Baselines, cumulative scheme revenue, and revenue obtained each interval
+    # Scheme revenue
+    cumulative_revenue = analysis.get_cumulative_scheme_revenue(output_directory, 2018, 2)
+
+    # Cumulative scheme revenue for each week in model horizon
+    model_revenue = {(y, w): analysis.get_cumulative_scheme_revenue(output_directory, y, w) for w in range(1, 8)
+                     for y in [2018]}
+
+    # Model baselines
     model_baselines = analysis.get_baselines(output_directory)
-    model_cumulative_revenue = analysis.get_cumulative_scheme_revenue(output_directory)
-    model_interval_revenue = analysis.get_interval_scheme_revenue(output_directory)
 
-    # Convert to DataFrames
-    df_b = pd.Series(model_baselines)
-    df_r = pd.Series(model_cumulative_revenue)
-    df_i = pd.Series(model_interval_revenue)
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
 
-    # Plotting to check data
-    df_b.sort_index().plot()
-    plt.show()
-    df_r.sort_index().plot()
-    plt.show()
-    df_i.sort_index().plot()
+    df_revenue = pd.Series(model_revenue).sort_index().rename('cumulative_revenue')
+    df_baselines = pd.Series(model_baselines).sort_index().rename('baseline')
+
+    df_revenue.plot(ax=ax1, color='blue')
+    df_baselines.plot(ax=ax2, color='red')
     plt.show()
 
-    filename = 'mpc_2018_3.pickle'
-    with open(os.path.join(output_directory, filename), 'rb') as g:
-        interval_results = pickle.load(g)
+    # Cumulative scheme revenue at beginning of week 2
+    cumulative_revenue_2 = analysis.get_cumulative_scheme_revenue(output_directory, 2018, 2)
+    # cumulative_revenue_3 = analysis.get_cumulative_scheme_revenue(output_directory, 2018, 3)
+    # cumulative_revenue_4 = analysis.get_cumulative_scheme_revenue(output_directory, 2018, 4)
 
-    df_e_actual = analysis.get_generator_energy_output(output_directory, 2018, 3)
+    with open(os.path.join(output_directory, 'mpc_2018_2.pickle'), 'rb') as f:
+        mpc_results_2 = pickle.load(f)
 
-    df_e_forecast = (pd.Series(interval_results['energy_forecast']).rename('energy_forecast')
-        .rename_axis(['generator', 'interval']).reset_index().drop('interval', axis=1).set_index('generator'))
+    with open(os.path.join(output_directory, 'mpc_2018_3.pickle'), 'rb') as f:
+        mpc_results_3 = pickle.load(f)
 
-    df_e_compare = pd.concat([df_e_actual, df_e_forecast], axis=1, sort=True)
-
-    fig, ax = plt.subplots()
-    df_e_compare.plot.scatter(x='energy_observed', y='energy_forecast', ax=ax)
-    ax.plot([0, 120000], [0, 120000])
-    # for k, v in df_e_compare.iterrows():
-    #     ax.annotate(k, v)
-    plt.show()
+    # with open(os.path.join(output_directory, 'mpc_2018_4.pickle'), 'rb') as f:
+    #     mpc_results_4 = pickle.load(f)
