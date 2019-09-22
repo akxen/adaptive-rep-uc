@@ -72,7 +72,6 @@ if __name__ == '__main__':
     overlap_intervals = 17
     calibration_intervals = 1
     scenarios = 1
-
     baseline_start = 1
 
     # Unit commitment and MPC model objects

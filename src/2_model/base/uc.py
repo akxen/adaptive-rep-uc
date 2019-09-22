@@ -938,9 +938,9 @@ class UnitCommitment:
     def fix_binary_variables(m):
         """Fix all binary variables"""
 
-        m.u.fix()
-        m.v.fix()
-        m.w.fix()
+        for k in m.u.keys(): m.u[k].fix(round(m.u[k].value))
+        for k in m.v.keys(): m.v[k].fix(round(m.v[k].value))
+        for k in m.w.keys(): m.w[k].fix(round(m.w[k].value))
 
         return m
 
