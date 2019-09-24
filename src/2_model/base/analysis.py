@@ -30,7 +30,7 @@ class AnalyseResults:
         results = self.load_interval_results(output_dir, year, week, day)
 
         # Convert to series
-        s = pd.Series(results[(year, week, day)][var_id])
+        s = pd.Series(results[var_id])
 
         # Rename axes
         df = s.rename_axis(['generator', 'hour']).rename(var_id)
@@ -81,7 +81,7 @@ class AnalyseResults:
                     results = pickle.load(g)
 
                 # Update cumulative scheme revenue
-                cumulative_revenue += results[(y, w, d)]['DAY_SCHEME_REVENUE']
+                cumulative_revenue += results['DAY_SCHEME_REVENUE']
 
         return cumulative_revenue
 
@@ -100,9 +100,9 @@ class AnalyseResults:
 
             # Add interval to container
             if (year, week) in interval_revenue.keys():
-                interval_revenue[(year, week)] += results[(year, week, day)]['DAY_SCHEME_REVENUE']
+                interval_revenue[(year, week)] += results['DAY_SCHEME_REVENUE']
             else:
-                interval_revenue[(year, week)] = results[(year, week, day)]['DAY_SCHEME_REVENUE']
+                interval_revenue[(year, week)] = results['DAY_SCHEME_REVENUE']
 
         return interval_revenue
 
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     cumulative_revenue = analysis.get_cumulative_scheme_revenue(output_directory, 2018, 2)
 
     # Cumulative scheme revenue for each week in model horizon
-    model_revenue = {(y, w): analysis.get_cumulative_scheme_revenue(output_directory, y, w) for w in range(1, 8)
+    model_revenue = {(y, w): analysis.get_cumulative_scheme_revenue(output_directory, y, w) for w in range(1, 53)
                      for y in [2018]}
 
     # Model baselines
@@ -142,8 +142,13 @@ if __name__ == '__main__':
     df_revenue = pd.Series(model_revenue).sort_index().rename('cumulative_revenue')
     df_baselines = pd.Series(model_baselines).sort_index().rename('baseline')
 
-    df_revenue.plot(ax=ax1, color='blue')
-    df_baselines.plot(ax=ax2, color='red')
+    # Combine into single DataFrame
+    df_c = pd.concat([df_revenue, df_baselines], axis=1)
+
+    # Plot cumulative scheme revenue and baselines
+    df_c['cumulative_revenue'].plot(ax=ax1, color='blue')
+    df_c['baseline'].plot(ax=ax2, color='red')
+
     plt.show()
 
     # Cumulative scheme revenue at beginning of week 2

@@ -71,7 +71,7 @@ class UnitCommitment:
         # Quick start thermal generators (existing and candidate)
         m.G_THERM_QUICK = Set(initialize=self.data.quick_start_duids).intersection(m.G_MODELLED)
 
-        # All generators (note: storage units excluded)
+        # All generators (storage units excluded)
         m.G = m.G_THERM.union(m.G_WIND).union(m.G_SOLAR).union(m.G_HYDRO)
 
         # Operating scenario hour
@@ -245,8 +245,11 @@ class UnitCommitment:
         # Value of lost load [$/MWh]
         m.C_L = Param(initialize=10000)
 
-        # Permit price - define once for all dispatch intervals
-        m.PERMIT_PRICE = Param(initialize=0, mutable=True)
+        # Penalty for violating up reserve constraint
+        m.C_UV = Param(initialize=1000)
+
+        # Permit price - positive if generators eligible under scheme.
+        m.PERMIT_PRICE = Param(m.G, initialize=0, mutable=True)
 
         # -------------------------------------------------------------------------------------------------------------
         # Parameters to update each time model is run
@@ -310,6 +313,9 @@ class UnitCommitment:
 
         # Lost-load
         m.p_V = Var(m.Z, m.T, within=NonNegativeReals, initialize=0)
+
+        # Up reserve constraint violation
+        m.reserve_up_violation = Var(m.R, m.T, within=NonNegativeReals, initialize=0)
 
         return m
 
@@ -381,11 +387,18 @@ class UnitCommitment:
         # Emissions intensity for given day
         m.DAY_EMISSIONS_INTENSITY = Expression(rule=day_emissions_intensity_rule)
 
+        def net_penalty_rule(_m, g, t):
+            """Net penalty per MWh"""
+
+            return (m.EMISSIONS_RATE[g] - m.BASELINE[t]) * m.PERMIT_PRICE[g]
+
+        # Net penalty per MWh
+        m.NET_PENALTY = Expression(m.G, m.T, rule=net_penalty_rule)
+
         def day_scheme_revenue_rule(_m):
             """Total scheme revenue accrued for a given day"""
 
-            return sum((m.EMISSIONS_RATE[g] - m.BASELINE[t]) * m.e[g, t] * m.PERMIT_PRICE
-                       for g in m.G_THERM for t in range(1, 25))
+            return sum(m.NET_PENALTY[g, t] * m.e[g, t] for g in m.G for t in range(1, 25))
 
         # Scheme revenue for a given day
         m.DAY_SCHEME_REVENUE = Expression(rule=day_scheme_revenue_rule)
@@ -394,10 +407,9 @@ class UnitCommitment:
             """Cost to operate thermal generators for given scenario"""
 
             # Operating cost related to energy output + emissions charge
-            operating_costs = (sum((m.C_MC[g] + ((m.EMISSIONS_RATE[g] - m.BASELINE[t]) * m.PERMIT_PRICE)) * m.e[g, t]
-                                   for g in m.G_THERM for t in m.T))
+            operating_costs = sum((m.C_MC[g] + m.NET_PENALTY[g, t]) * m.e[g, t] for g in m.G_THERM for t in m.T)
 
-            # Existing unit start-up costs
+            # Existing unit start-up and shutdown costs
             startup_shutdown_costs = (sum((m.C_SU[g] * m.v[g, t]) + (m.C_SD[g] * m.w[g, t])
                                           for g in m.G_THERM for t in m.T))
 
@@ -412,7 +424,7 @@ class UnitCommitment:
         def hydro_operating_costs_rule(_m):
             """Cost to operate hydro generators"""
 
-            return sum(m.C_MC[g] * m.e[g, t] for g in m.G_HYDRO for t in m.T)
+            return sum((m.C_MC[g] + m.NET_PENALTY[g, t]) * m.e[g, t] for g in m.G_HYDRO for t in m.T)
 
         # Operating cost - hydro generators
         m.OP_H = Expression(rule=hydro_operating_costs_rule)
@@ -421,7 +433,7 @@ class UnitCommitment:
             """Cost to operate wind generators"""
 
             # Existing wind generators - not eligible for subsidy
-            total_cost = sum(m.C_MC[g] * m.e[g, t] for g in m.G_WIND for t in m.T)
+            total_cost = sum((m.C_MC[g] + m.NET_PENALTY[g, t]) * m.e[g, t] for g in m.G_WIND for t in m.T)
 
             return total_cost
 
@@ -432,7 +444,7 @@ class UnitCommitment:
             """Cost to operate solar generators"""
 
             # Existing solar generators - not eligible for subsidy
-            total_cost = sum(m.C_MC[g] * m.e[g, t] for g in m.G_SOLAR for t in m.T)
+            total_cost = sum((m.C_MC[g] + m.NET_PENALTY[g, t]) * m.e[g, t] for g in m.G_SOLAR for t in m.T)
 
             return total_cost
 
@@ -455,8 +467,16 @@ class UnitCommitment:
         # Value of lost load
         m.OP_L = Expression(rule=lost_load_value_rule)
 
+        def reserve_up_violation_value_rule(_m):
+            """Value of up reserve constraint violation"""
+
+            return sum(m.C_UV * m.reserve_up_violation[r, t] for r in m.R for t in m.T)
+
+        # Up reserve violation penalty
+        m.OP_U = Expression(rule=reserve_up_violation_value_rule)
+
         # Total operating cost for a given interval
-        m.INTERVAL_COST = Expression(expr=m.OP_T + m.OP_H + m.OP_W + m.OP_S + m.OP_Q + m.OP_L)
+        m.INTERVAL_COST = Expression(expr=m.OP_T + m.OP_H + m.OP_W + m.OP_S + m.OP_Q + m.OP_L + m.OP_U)
 
         # Objective function - sum of operational costs for a given interval
         m.OBJECTIVE_FUNCTION = Expression(expr=m.INTERVAL_COST)
@@ -475,7 +495,7 @@ class UnitCommitment:
             # Subset of generators with NEM region
             gens_subset = [g for g in gens if self.data.duid_zone_map[g] in self.data.nem_region_zone_map[r]]
 
-            return sum(m.r_up[g, t] for g in gens_subset) >= m.RESERVE_UP[r]
+            return sum(m.r_up[g, t] for g in gens_subset) + m.reserve_up_violation[r, t] >= m.RESERVE_UP[r]
 
         # Upward power reserve rule for each NEM region
         m.RESERVE_UP_CONS = Constraint(m.R, m.T, rule=reserve_up_rule)
@@ -955,7 +975,7 @@ class UnitCommitment:
         return m
 
     @staticmethod
-    def save_solution(m, year, week, day, output_dir):
+    def save_solution(m, year, week, day, output_dir, update=False):
         """Save solution"""
 
         # Primal objects to extract
@@ -977,8 +997,17 @@ class UnitCommitment:
         # Dual results
         dual_results = {d: {k: m.dual[v] for k, v in m.__getattribute__(d).items()} for d in dual}
 
+        if update:
+            # Load previously saved results
+            with open(os.path.join(output_dir, f'interval_{year}_{week}_{day}.pickle'), 'rb') as f:
+                previous_results = pickle.load(f)
+
+            # Use previous power balance dual values for first 24 hours
+            dual_results = {d: {k: previous_results[d][k] if k[1] <= 24 else dual_results[d][k]
+                            for k in dual_results[d].keys()} for d in dual}
+
         # Combine primal a single dictionary
-        results = {(year, week, day): {**primal_results, **dual_results, **expressions}}
+        results = {**primal_results, **dual_results, **expressions}
 
         # Save results
         with open(os.path.join(output_dir, f'interval_{year}_{week}_{day}.pickle'), 'wb') as f:
@@ -1005,31 +1034,31 @@ class UnitCommitment:
         # Fix variables to values obtained in preceding interval
         for t in range(1, overlap + 1):
             for g in m.G.difference(m.G_STORAGE, m.G_THERM):
-                m.p_total[g, t].fix(previous_solution[(year, week, day)]['p_total'][(g, interval_map[t])])
+                m.p_total[g, t].fix(previous_solution['p_total'][(g, interval_map[t])])
 
             for g in m.G_THERM:
-                m.u[g, t].fix(round(previous_solution[(year, week, day)]['u'][(g, interval_map[t])]))
-                m.v[g, t].fix(round(previous_solution[(year, week, day)]['v'][(g, interval_map[t])]))
-                m.w[g, t].fix(round(previous_solution[(year, week, day)]['w'][(g, interval_map[t])]))
-                m.p[g, t].fix(previous_solution[(year, week, day)]['p'][(g, interval_map[t])])
-                m.r_up[g, t].fix(previous_solution[(year, week, day)]['r_up'][(g, interval_map[t])])
+                m.u[g, t].fix(round(previous_solution['u'][(g, interval_map[t])]))
+                m.v[g, t].fix(round(previous_solution['v'][(g, interval_map[t])]))
+                m.w[g, t].fix(round(previous_solution['w'][(g, interval_map[t])]))
+                m.p[g, t].fix(previous_solution['p'][(g, interval_map[t])])
+                m.r_up[g, t].fix(previous_solution['r_up'][(g, interval_map[t])])
 
-                m.U0[g] = int(round(previous_solution[(year, week, day)]['u'][(g, interval_map[0])]))
-                m.P0[g] = previous_solution[(year, week, day)]['p'][(g, interval_map[0])]
+                m.U0[g] = int(round(previous_solution['u'][(g, interval_map[0])]))
+                m.P0[g] = previous_solution['p'][(g, interval_map[0])]
 
             for g in m.G_STORAGE:
-                m.q[g, t].fix(previous_solution[(year, week, day)]['q'][(g, interval_map[t])])
-                m.p_in[g, t].fix(previous_solution[(year, week, day)]['p_in'][(g, interval_map[t])])
-                m.p_out[g, t].fix(previous_solution[(year, week, day)]['p_out'][(g, interval_map[t])])
-                m.r_up[g, t].fix(previous_solution[(year, week, day)]['r_up'][(g, interval_map[t])])
+                m.q[g, t].fix(previous_solution['q'][(g, interval_map[t])])
+                m.p_in[g, t].fix(previous_solution['p_in'][(g, interval_map[t])])
+                m.p_out[g, t].fix(previous_solution['p_out'][(g, interval_map[t])])
+                m.r_up[g, t].fix(previous_solution['r_up'][(g, interval_map[t])])
 
-                m.Q0[g] = previous_solution[(year, week, day)]['q'][(g, interval_map[0])]
+                m.Q0[g] = previous_solution['q'][(g, interval_map[0])]
 
             for l in m.L:
-                m.p_flow[l, t].fix(previous_solution[(year, week, day)]['p_flow'][(l, interval_map[t])])
+                m.p_flow[l, t].fix(previous_solution['p_flow'][(l, interval_map[t])])
 
             for z in m.Z:
-                m.p_V[z, t].fix(previous_solution[(year, week, day)]['p_V'][(z, interval_map[t])])
+                m.p_V[z, t].fix(previous_solution['p_V'][(z, interval_map[t])])
 
         return m
 

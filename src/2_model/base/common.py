@@ -18,7 +18,6 @@ class CommonComponents:
             return float(self.data.generators.loc[g, 'EMISSIONS'])
 
         # Emissions intensities for all generators
-        m.EMISSIONS_RATE = Param(m.G, rule=emissions_intensity_rule)
+        m.EMISSIONS_RATE = Param(m.G, rule=emissions_intensity_rule, mutable=True)
 
         return m
-
