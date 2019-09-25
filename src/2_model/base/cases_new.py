@@ -199,7 +199,7 @@ def run_case(params):
 
                     # Emissions intensities aligned for next calibration interval
                     for g in m_mpc.G:
-                        m_mpc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_uc.EMISSIONS_RATE[g]
+                        m_mpc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_mpc.EMISSIONS_RATE[g]
 
                 # Update rolling window counter
                 window += 1
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         if week < 10:
             revenue_target[week] = 0
         elif (week >= 10) and (week <= 20):
-            revenue_target[week] = (week - 10) * 100000
+            revenue_target[week] = (week - 10) * 1000000
         else:
             revenue_target[week] = 10 * 1000000
 
@@ -255,7 +255,7 @@ if __name__ == '__main__':
                         'output_dir': os.path.join(output_directory, 'carbon_tax'),
                         'revenue_floor': None,
                         'revenue_target': {w: float(0) for w in weeks},
-                        'permit_price': {g: float(0) for g in m_d.G},
+                        'permit_price': {g: float(40) for g in m_d.G},
                         'baseline_update_required': False},
 
                    'revenue_target':
@@ -336,17 +336,18 @@ if __name__ == '__main__':
     # case_params.pop('revenue_target')
     # case_params.pop('emissions_intensity_shock')
 
-    cleanup_directory(case_params['revenue_target']['output_dir'])
-    run_case(case_params['revenue_target'])
+    # for c in ['revenue_target', 'emissions_intensity_shock']:
+    #     cleanup_directory(case_params[c]['output_dir'])
+    #     run_case(case_params[c])
 
     # # Run all cases
-    # for name, parameters in case_params.items():
-    #     print(f'Running case: {name}')
-    #     print(parameters)
-    #
-    #     # Create directory if it doesn't exist, and cleanup files
-    #     create_case_directory(parameters['output_dir'])
-    #     cleanup_directory(parameters['output_dir'])
-    #
-    #     # Run case
-    #     run_case(parameters)
+    for name, parameters in case_params.items():
+        print(f'Running case: {name}')
+        print(parameters)
+
+        # Create directory if it doesn't exist, and cleanup files
+        create_case_directory(parameters['output_dir'])
+        cleanup_directory(parameters['output_dir'])
+
+        # Run case
+        run_case(parameters)
