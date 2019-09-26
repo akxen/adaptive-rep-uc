@@ -22,7 +22,7 @@ class UnitCommitment:
         self.common = CommonComponents()
 
         # Solver options
-        self.keepfiles = True
+        self.keepfiles = False
         self.solver_options = {}  # 'mip tolerances integrality': 0.01
         self.opt = SolverFactory('cplex', solver_io='lp')
 
