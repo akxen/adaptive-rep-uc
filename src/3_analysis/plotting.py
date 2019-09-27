@@ -4,6 +4,7 @@ import os
 import pickle
 
 import MySQLdb
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter, AutoMinorLocator, LogLocator, NullFormatter
 
@@ -15,7 +16,7 @@ def cm_to_in(centimeters):
     return centimeters * 0.393701
 
 
-def calibration_intervals_plot():
+def calibration_intervals_plot(output_dir):
     """Analyse baseline and scheme revenue for different calibration intervals"""
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
     ax1c = ax1.twinx()
@@ -72,7 +73,7 @@ def calibration_intervals_plot():
     ax1.legend(lns, ['baseline', 'revenue'], fontsize=6, ncol=2, loc='upper left', bbox_to_anchor=(0, 1.18, 0, 0),
                frameon=False)
 
-    fig.savefig('output/calibration_intervals.pdf', transparent=True)
+    fig.savefig(os.path.join(output_dir, 'calibration_intervals.pdf'), transparent=True)
     plt.show()
 
 
@@ -148,6 +149,167 @@ def plot_lagged_dispatch(output_dir):
     plt.show()
 
 
+def revenue_target_plot(output_dir):
+    """Plot baseline and cumulative scheme revenue when a non-zero revenue target is specified"""
+
+    # Get baselines and cumulative scheme revenue
+    baselines, revenue = process.get_baselines_and_revenue('revenue_target')
+    revenue = revenue.div(1e6)
+
+    fig, ax = plt.subplots()
+    axc = ax.twinx()
+    ax.plot(range(1, 53), baselines.values, color='red', alpha=0.5, linewidth=1.2)
+    axc.plot(range(1, 53), revenue.values, color='blue', alpha=0.5, linewidth=1.2)
+    # axc.ticklabel_format(style='sci', scilimits=(-2, 2), useMathText=True)
+    ax.tick_params(labelsize=7)
+    axc.tick_params(labelsize=7)
+    ax.xaxis.set_major_locator(MultipleLocator(12))
+    ax.xaxis.set_minor_locator(MultipleLocator(2))
+    ax.yaxis.set_major_locator(MultipleLocator(0.01))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.002))
+    axc.yaxis.set_minor_locator(MultipleLocator(0.5))
+    axc.yaxis.set_major_locator(MultipleLocator(2.5))
+    axc.yaxis.offsetText.set_fontsize(8)
+    ax.set_xlabel('Week', fontsize=9)
+    ax.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=9, labelpad=-0.07)
+    axc.set_ylabel('Revenue (M\$)', fontsize=9, labelpad=-0.07)
+    axc.plot([0, 52], [0, 0], linestyle='--', color='k', alpha=0.5, linewidth=0.8)
+    axc.plot([0, 52], [10, 10], linestyle='--', color='k', alpha=0.5, linewidth=0.8)
+
+    lns = ax.lines + axc.lines
+    ax.legend(lns, ['baseline', 'revenue'], fontsize=9, ncol=2, loc='upper left', bbox_to_anchor=(0, 1.13, 0, 0),
+              frameon=False, )
+
+    fig.set_size_inches(cm_to_in(12), cm_to_in(7))
+    fig.subplots_adjust(left=0.11, bottom=0.15, right=0.89, top=0.92)
+
+    fig.savefig(os.path.join(output_dir, 'revenue_targeting.png'))
+    fig.savefig(os.path.join(output_dir, 'revenue_targeting.pdf'), transparent=True)
+    plt.show()
+
+
+def emissions_intensity_shock_plot(output_dir):
+    """Plot baseline and revenue from emissions intensity shock"""
+
+    # Get baselines and cumulative scheme revenue
+    baselines, revenue = process.get_baselines_and_revenue('emissions_intensity_shock')
+    revenue = revenue.div(1e6)
+
+    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True)
+    ax1.plot(range(1, 53), revenue.values, color='blue', alpha=0.5, linewidth=1.2)
+    ax2.plot(range(1, 53), baselines.values, color='red', alpha=0.5, linewidth=1.2)
+
+    ax1.plot([10, 10], [-100, 10], linewidth=1.2, linestyle='--', alpha=0.5, color='black')
+    ax1.set_ylim([-95, 5])
+
+    ax2.plot([10, 10], [0.1, 1.1], linewidth=1.2, linestyle='--', alpha=0.5, color='black')
+    ax2.set_ylim([0.12, 1.08])
+
+    ax1.tick_params(labelsize=7)
+    ax2.tick_params(labelsize=7)
+    ax2.xaxis.set_major_locator(MultipleLocator(12))
+    ax2.xaxis.set_minor_locator(MultipleLocator(2))
+    ax2.yaxis.set_major_locator(MultipleLocator(0.2))
+    ax2.yaxis.set_minor_locator(MultipleLocator(0.1))
+    ax1.yaxis.set_major_locator(MultipleLocator(25))
+    ax1.yaxis.set_minor_locator(MultipleLocator(12.5))
+
+    ax2.set_xlabel('Week', fontsize=9)
+    ax1.set_ylabel('Revenue (M\$)', fontsize=8, labelpad=-0.07)
+    ax2.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=8, labelpad=-0.07)
+
+    lns = [ax2.lines[0], ax1.lines[0]]
+    ax2.legend(lns, ['baseline', 'revenue'], fontsize=8, ncol=2, loc='upper right', bbox_to_anchor=(1, 1, 0, 0),
+               frameon=False)
+
+    fig.set_size_inches(cm_to_in(12), cm_to_in(7))
+    fig.subplots_adjust(left=0.09, bottom=0.15, right=0.99, top=0.99)
+
+    fig.savefig(os.path.join(output_dir, 'emissions_intensity_shock.png'))
+    fig.savefig(os.path.join(output_dir, 'emissions_intensity_shock.pdf'), transparent=True)
+    plt.show()
+
+
+def price_comparison_plot(output_dir):
+    """Compare BAU, carbon tax, and REP average weekly prices"""
+
+    p_bau, _ = process.get_week_prices('bau')
+    p_tax, _ = process.get_week_prices('carbon_tax')
+    p_rep, _ = process.get_week_prices('4_calibration_intervals')
+
+    fig, ax = plt.subplots()
+    ax.plot(range(1, 53), p_bau.values, color='red', alpha=0.7)
+    ax.plot(range(1, 53), p_tax.values, color='#159eab', alpha=0.7)
+    ax.plot(range(1, 53), p_rep.values, color='#15ab49', alpha=0.7)
+    ax.legend(['BAU', 'Tax', 'REP'], fontsize=8, ncol=3, loc='upper right', bbox_to_anchor=(1, 1.01, 0, 0),
+              frameon=False)
+
+    ax.tick_params(labelsize=7)
+    ax.xaxis.set_major_locator(MultipleLocator(12))
+    ax.xaxis.set_minor_locator(MultipleLocator(2))
+    ax.yaxis.set_major_locator(MultipleLocator(10))
+    ax.yaxis.set_minor_locator(MultipleLocator(2))
+
+    ax.set_xlabel('Week', fontsize=9)
+    ax.set_ylabel('Average price ($/MWh)', fontsize=9)
+
+    fig.set_size_inches(cm_to_in(12), cm_to_in(7))
+    fig.subplots_adjust(left=0.09, bottom=0.15, right=0.99, top=0.99)
+
+    fig.savefig(os.path.join(output_dir, 'price_comparison.png'))
+    fig.savefig(os.path.join(output_dir, 'price_comparison.pdf'), transparent=True)
+
+    plt.show()
+
+
+def quantile_regression_plot(output_dir):
+    """Plot quantile regression results"""
+
+    # Load quantile regression results
+    with open(os.path.join(output_dir, 'quantile_regression_results.pickle'), 'rb') as f:
+        results = pickle.load(f)
+
+    # Observed values up until point forecast is made (last interval)
+    y_obs = results['dataset'].loc[:, 'lag_0'].values[-10:]
+    x_obs = range(1, len(y_obs) + 1)
+
+    # Get quantile regression results
+    q_reg = results['results']
+
+    # Plot lines for each quantile and future period
+    fig, ax = plt.subplots()
+    for k in q_reg.keys():
+        x = range(max(x_obs), max(x_obs) + 5)
+        y = [y_obs[-1]] + list(q_reg[k].values())
+        ax.plot(x, y, color='grey', linewidth=0.6, linestyle='--', alpha=0.5)
+
+    # Fill area between curves
+    pairs = [(0.1, 0.9), (0.2, 0.8), (0.3, 0.7), (0.4, 0.6)]
+    for pair in pairs:
+        x = range(max(x_obs), max(x_obs) + 5)
+        y1, y2 = [y_obs[-1]] + list(q_reg[pair[0]].values()), [y_obs[-1]] + list(q_reg[pair[1]].values())
+        ax.fill_between(x, y1, y2, facecolor='#d43126', alpha=0.5)
+
+    # Plot observed values up until point forecast is made (last data point)
+    ax.plot(x_obs, y_obs, color='#264fd4', alpha=0.8)
+
+    ax.tick_params(labelsize=7)
+    ax.xaxis.set_major_locator(MultipleLocator(2))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.yaxis.set_minor_locator(MultipleLocator(200))
+    ax.set_xlabel('Week', fontsize=9)
+    ax.set_ylabel('Energy (MWh)', fontsize=9)
+    ax.text(1, 96000, 'LYA1')
+
+    fig.set_size_inches(cm_to_in(12), cm_to_in(7))
+    fig.subplots_adjust(left=0.13, bottom=0.15, right=0.99, top=0.99)
+
+    fig.savefig(os.path.join(output_dir, 'quantile_regression_example.png'))
+    fig.savefig(os.path.join(output_dir, 'quantile_regression_example.pdf'), transparent=True)
+
+    plt.show()
+
+
 if __name__ == '__main__':
     # Output directory
     output_directory = os.path.join(os.path.dirname(__file__), 'output')
@@ -158,6 +320,17 @@ if __name__ == '__main__':
     # Compare baseline and revenue traces for different calibration intervals
     # calibration_intervals_plot()
 
-    plot_lagged_dispatch(output_directory)
+    # Plot lagged dispatch
+    # plot_lagged_dispatch(output_directory)
 
+    # Plot revenue target
+    # revenue_target_plot()
 
+    # Plot revenue and baselines following an emissions intensity shock
+    # emissions_intensity_shock_plot()
+
+    # Plot price comparison
+    # price_comparison_plot(output_directory)
+
+    # Quantile regression plot
+    quantile_regression_plot(output_directory)

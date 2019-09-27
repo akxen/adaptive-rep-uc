@@ -102,7 +102,10 @@ def run_case(params):
     m_uc.PERMIT_PRICE.store_values(params['permit_price'])
 
     for t in m_uc.T:
-        m_uc.BASELINE[t] = float(params['baseline_start'])
+        if params['case_name'] == 'carbon_tax':
+            m_uc.BASELINE[t] = float(0)
+        else:
+            m_uc.BASELINE[t] = float(params['baseline_start'])
 
     # Counter for model windows, and flag used to break loop if model is infeasible
     window = 1
@@ -195,11 +198,15 @@ def run_case(params):
                 if (params['case_name'] == 'emissions_intensity_shock') and (w == params['emissions_shock_week']):
                     # Applying new emissions intensities for coming calibration interval (misaligned with forecast)
                     for g in m_uc.G:
-                        m_uc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_uc.EMISSIONS_RATE[g]
+                        print(f'UC old emissions intensity: {m_uc.EMISSIONS_RATE[g].value}')
+                        m_uc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_uc.EMISSIONS_RATE[g].value
+                        print(f'UC new emissions intensity: {m_uc.EMISSIONS_RATE[g].value}')
 
                     # Emissions intensities aligned for next calibration interval
                     for g in m_mpc.G:
-                        m_mpc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_mpc.EMISSIONS_RATE[g]
+                        print(f'MPC old emissions intensity: {m_mpc.EMISSIONS_RATE[g].value}')
+                        m_mpc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_mpc.EMISSIONS_RATE[g].value
+                        print(f'MPC new emissions intensity: {m_mpc.EMISSIONS_RATE[g].value}')
 
                 # Update rolling window counter
                 window += 1
@@ -336,18 +343,18 @@ if __name__ == '__main__':
     # case_params.pop('revenue_target')
     # case_params.pop('emissions_intensity_shock')
 
-    # for c in ['revenue_target', 'emissions_intensity_shock']:
-    #     cleanup_directory(case_params[c]['output_dir'])
-    #     run_case(case_params[c])
+    for c in ['emissions_intensity_shock']:
+        cleanup_directory(case_params[c]['output_dir'])
+        run_case(case_params[c])
 
     # # Run all cases
-    for name, parameters in case_params.items():
-        print(f'Running case: {name}')
-        print(parameters)
-
-        # Create directory if it doesn't exist, and cleanup files
-        create_case_directory(parameters['output_dir'])
-        cleanup_directory(parameters['output_dir'])
-
-        # Run case
-        run_case(parameters)
+    # for name, parameters in case_params.items():
+    #     print(f'Running case: {name}')
+    #     print(parameters)
+    #
+    #     # Create directory if it doesn't exist, and cleanup files
+    #     create_case_directory(parameters['output_dir'])
+    #     cleanup_directory(parameters['output_dir'])
+    #
+    #     # Run case
+    #     run_case(parameters)

@@ -176,9 +176,67 @@ def get_weekly_dispatch_data(output_dir, use_cache):
         return df_c
 
 
+def run_quantile_regression_example(s, output_dir):
+    """Run quantile regression model example"""
+
+    def get_lags(series, intervals, direction):
+        """Given a series, construct lagged series"""
+
+        # Container for lagged results
+        dfs = []
+
+        for i in range(1, intervals + 1):
+            if direction == 'past':
+                dfs.append(series.shift(i).to_frame(f'lag_{i}'))
+            elif direction == 'future':
+                dfs.append(series.shift(-i).to_frame(f'future_{i}'))
+            else:
+                raise Exception(f"Must specify 'past' or 'future': {direction}")
+
+        return pd.concat(dfs, axis=1)
+
+    # Lagged values, including latest data point (lag = 0)
+    lags = get_lags(s, intervals=5, direction='past')
+    lags = pd.concat([s.to_frame('lag_0'), lags], axis=1)
+    lags = lags.drop((2019, 1))
+
+    # Future intervals
+    future = get_lags(s, intervals=4, direction='future')
+
+    # Construct dataset with lagged and future values
+    dataset = pd.concat([lags, future], axis=1).dropna(how='any')
+    x = dataset.loc[:, dataset.columns.str.contains('lag')]
+
+    # Container for regression results
+    results = {}
+
+    # Run model for each quantile
+    for q in [0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9]:
+        results[q] = {}
+        for p in range(1, 5):
+            # Construct and fit model
+            m = sm.QuantReg(dataset.loc[:, f'future_{p}'], x)
+            res = m.fit(q=q)
+
+            # Make prediction for last time point
+            pred = res.predict(lags.iloc[-1].values)[0]
+            results[q][p] = pred
+
+    # Combine results
+    combined_results = {'results': results, 'dataset': dataset}
+
+    with open(os.path.join(output_dir, 'quantile_regression_results.pickle'), 'wb') as f:
+        pickle.dump(combined_results, f)
+
+    return combined_results
+
+
 if __name__ == '__main__':
     # Output directory
     output_directory = os.path.join(os.path.dirname(__file__), 'output')
 
     # Dispatch data
     _, _, _, dispatch = process_dispatch_data(output_directory, use_cache=True)
+
+    # Run model for given DUID
+    r = run_quantile_regression_example(dispatch['LYA1'], output_directory)
