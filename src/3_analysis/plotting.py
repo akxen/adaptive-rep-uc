@@ -60,28 +60,40 @@ def calibration_intervals_plot(output_dir):
     ax3c.set_yticklabels([])
     ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.005)
     ax3.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.005)
-    ax2c.set_ylabel('Revenue ($)', fontsize=7)
-    ax4c.set_ylabel('Revenue ($)', fontsize=7)
-    ax3.set_xlabel('Week', fontsize=7)
-    ax4.set_xlabel('Week', fontsize=7)
-    ax1.text(37, 0.965, '1 interval', fontsize=6)
-    ax2.text(37, 0.965, '2 intervals', fontsize=6)
-    ax3.text(37, 0.965, '4 intervals', fontsize=6)
-    ax4.text(37, 0.965, '6 intervals', fontsize=6)
+    ax2c.set_ylabel('Revenue ($)', fontsize=8)
+    ax4c.set_ylabel('Revenue ($)', fontsize=8)
+    ax3.set_xlabel('Week', fontsize=8)
+    ax4.set_xlabel('Week', fontsize=8)
+    ax1.text(35, 0.965, '1 interval', fontsize=8)
+    ax2.text(33, 0.965, '2 intervals', fontsize=8)
+    ax3.text(33, 0.965, '4 intervals', fontsize=8)
+    ax4.text(33, 0.965, '6 intervals', fontsize=8)
 
     lns = ax1.lines + ax1c.lines
-    ax1.legend(lns, ['baseline', 'revenue'], fontsize=6, ncol=2, loc='upper left', bbox_to_anchor=(0, 1.18, 0, 0),
+    ax1.legend(lns, ['baseline', 'revenue'], fontsize=9, ncol=2, loc='upper left', bbox_to_anchor=(-0.08, 1.25, 0, 0),
                frameon=False)
 
+    fig.savefig(os.path.join(output_dir, 'calibration_intervals.png'))
     fig.savefig(os.path.join(output_dir, 'calibration_intervals.pdf'), transparent=True)
+
     plt.show()
 
 
-def plot_lagged_dispatch(output_dir):
+def plot_lagged_dispatch(output_dir, aggregate_duids):
     """Compare dispatch for different lag lengths"""
 
     with open(os.path.join(output_dir, 'dispatch_weekly.pickle'), 'rb') as f:
         dispatch = pickle.load(f)
+
+    # Aggregate dispatch to the station level
+    if aggregate_duids:
+        d = dispatch.T.join(process.data.generators[['STATIONID']], how='left').groupby('STATIONID').sum().T
+        d.index = pd.MultiIndex.from_tuples(d.index)
+        dispatch = d.copy()
+        filename = 'lagged_dispatch_aggregated'
+
+    else:
+        filename = 'lagged_dispatch'
 
     def plot_week_energy(df, future_week, ax):
         """Plot energy in current week compared to future weeks"""
@@ -104,8 +116,8 @@ def plot_lagged_dispatch(output_dir):
         ax.scatter([i[0] for i in pairs], [i[1] for i in pairs], alpha=0.3, s=1, color='#c93838')
         ax.set_yscale('log')
         ax.set_xscale('log')
-        ax.set_xlim([0.8, 300000])
-        ax.set_ylim([0.8, 300000])
+        ax.set_xlim([0.8, 600000])
+        ax.set_ylim([0.8, 600000])
         ax.tick_params(labelsize=6)
         ax.set_xlabel('Energy', fontsize=8, labelpad=-0.1)
 
@@ -128,7 +140,7 @@ def plot_lagged_dispatch(output_dir):
         else:
             ax.set_ylabel(f'Energy +{future_week} weeks', fontsize=8, labelpad=0)
 
-        ax.plot([0, 200000], [0, 200000], color='k', linestyle='--', linewidth=1)
+        ax.plot([0, 400000], [0, 400000], color='k', linestyle='--', linewidth=1)
 
         return ax
 
@@ -143,8 +155,8 @@ def plot_lagged_dispatch(output_dir):
     fig.set_size_inches(cm_to_in(12), cm_to_in(7))
     fig.subplots_adjust(hspace=0.4, wspace=0.25, left=0.08, bottom=0.12, top=0.99, right=0.99)
 
-    fig.savefig(os.path.join(output_dir, 'lagged_dispatch.pdf'), transparent=True)
-    fig.savefig(os.path.join(output_dir, 'lagged_dispatch.png'), transparent=True)
+    fig.savefig(os.path.join(output_dir, f'{filename}.pdf'), transparent=True)
+    fig.savefig(os.path.join(output_dir, f'{filename}.png'), transparent=True)
 
     plt.show()
 
@@ -318,10 +330,11 @@ if __name__ == '__main__':
     process = Results()
 
     # Compare baseline and revenue traces for different calibration intervals
-    # calibration_intervals_plot()
+    calibration_intervals_plot(output_directory)
 
     # Plot lagged dispatch
-    # plot_lagged_dispatch(output_directory)
+    # plot_lagged_dispatch(output_directory, aggregate_duids=True)
+    # plot_lagged_dispatch(output_directory, aggregate_duids=False)
 
     # Plot revenue target
     # revenue_target_plot()
@@ -333,4 +346,7 @@ if __name__ == '__main__':
     # price_comparison_plot(output_directory)
 
     # Quantile regression plot
-    quantile_regression_plot(output_directory)
+    # quantile_regression_plot(output_directory)
+
+    # with open(os.path.join(output_directory, 'dispatch_weekly.pickle'), 'rb') as f:
+    #     dispatch = pickle.load(f)
