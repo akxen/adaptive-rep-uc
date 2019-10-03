@@ -119,7 +119,7 @@ def plot_lagged_dispatch(output_dir, aggregate_duids):
         ax.set_xlim([0.8, 600000])
         ax.set_ylim([0.8, 600000])
         ax.tick_params(labelsize=6)
-        ax.set_xlabel('Energy', fontsize=8, labelpad=-0.1)
+        ax.set_xlabel('Energy (MWh)', fontsize=8, labelpad=-0.1)
 
         locmajx = LogLocator(base=10, numticks=10)
         ax.xaxis.set_major_locator(locmajx)
@@ -156,7 +156,7 @@ def plot_lagged_dispatch(output_dir, aggregate_duids):
     fig.subplots_adjust(hspace=0.4, wspace=0.25, left=0.08, bottom=0.12, top=0.99, right=0.99)
 
     fig.savefig(os.path.join(output_dir, f'{filename}.pdf'), transparent=True)
-    fig.savefig(os.path.join(output_dir, f'{filename}.png'), transparent=True)
+    fig.savefig(os.path.join(output_dir, f'{filename}.png'), transparent=True, dpi=1000)
 
     plt.show()
 
@@ -333,8 +333,8 @@ if __name__ == '__main__':
     calibration_intervals_plot(output_directory)
 
     # Plot lagged dispatch
-    # plot_lagged_dispatch(output_directory, aggregate_duids=True)
-    # plot_lagged_dispatch(output_directory, aggregate_duids=False)
+    plot_lagged_dispatch(output_directory, aggregate_duids=True)
+    plot_lagged_dispatch(output_directory, aggregate_duids=False)
 
     # Plot revenue target
     # revenue_target_plot()
