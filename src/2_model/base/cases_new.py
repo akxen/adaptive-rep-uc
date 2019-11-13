@@ -195,18 +195,19 @@ def run_case(params):
                     for h in m_uc.T:
                         m_uc.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
-                if (params['case_name'] == 'emissions_intensity_shock') and (w == params['emissions_shock_week']):
+                if ((params['case_name'] == 'emissions_intensity_shock') and (w == params['emissions_shock_week'])
+                        and (d == 1)):
                     # Applying new emissions intensities for coming calibration interval (misaligned with forecast)
                     for g in m_uc.G:
-                        print(f'UC old emissions intensity: {m_uc.EMISSIONS_RATE[g].value}')
+                        print(f'UC old emissions intensity {g}: {m_uc.EMISSIONS_RATE[g].value}')
                         m_uc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_uc.EMISSIONS_RATE[g].value
-                        print(f'UC new emissions intensity: {m_uc.EMISSIONS_RATE[g].value}')
+                        print(f'UC new emissions intensity {g}: {m_uc.EMISSIONS_RATE[g].value}')
 
                     # Emissions intensities aligned for next calibration interval
                     for g in m_mpc.G:
-                        print(f'MPC old emissions intensity: {m_mpc.EMISSIONS_RATE[g].value}')
+                        print(f'MPC old emissions intensity {g}: {m_mpc.EMISSIONS_RATE[g].value}')
                         m_mpc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_mpc.EMISSIONS_RATE[g].value
-                        print(f'MPC new emissions intensity: {m_mpc.EMISSIONS_RATE[g].value}')
+                        print(f'MPC new emissions intensity {g}: {m_mpc.EMISSIONS_RATE[g].value}')
 
                 # Update rolling window counter
                 window += 1

@@ -212,19 +212,19 @@ def emissions_intensity_shock_plot(output_dir):
     ax2.plot(range(1, 53), baselines.values, color='red', alpha=0.5, linewidth=1.2)
 
     ax1.plot([10, 10], [-100, 10], linewidth=1.2, linestyle='--', alpha=0.5, color='black')
-    ax1.set_ylim([-95, 5])
+    ax1.set_ylim([-30, 5])
 
     ax2.plot([10, 10], [0.1, 1.1], linewidth=1.2, linestyle='--', alpha=0.5, color='black')
-    ax2.set_ylim([0.12, 1.08])
+    ax2.set_ylim([0.75, 1.02])
 
     ax1.tick_params(labelsize=7)
     ax2.tick_params(labelsize=7)
     ax2.xaxis.set_major_locator(MultipleLocator(12))
     ax2.xaxis.set_minor_locator(MultipleLocator(2))
-    ax2.yaxis.set_major_locator(MultipleLocator(0.2))
-    ax2.yaxis.set_minor_locator(MultipleLocator(0.1))
-    ax1.yaxis.set_major_locator(MultipleLocator(25))
-    ax1.yaxis.set_minor_locator(MultipleLocator(12.5))
+    ax2.yaxis.set_major_locator(MultipleLocator(0.1))
+    ax2.yaxis.set_minor_locator(MultipleLocator(0.05))
+    ax1.yaxis.set_major_locator(MultipleLocator(10))
+    ax1.yaxis.set_minor_locator(MultipleLocator(5))
 
     ax2.set_xlabel('Week', fontsize=9)
     ax1.set_ylabel('Revenue (M\$)', fontsize=8, labelpad=-0.07)
@@ -333,14 +333,14 @@ if __name__ == '__main__':
     calibration_intervals_plot(output_directory)
 
     # Plot lagged dispatch
-    plot_lagged_dispatch(output_directory, aggregate_duids=True)
-    plot_lagged_dispatch(output_directory, aggregate_duids=False)
+    # plot_lagged_dispatch(output_directory, aggregate_duids=True)
+    # plot_lagged_dispatch(output_directory, aggregate_duids=False)
 
     # Plot revenue target
     # revenue_target_plot()
 
     # Plot revenue and baselines following an emissions intensity shock
-    # emissions_intensity_shock_plot()
+    emissions_intensity_shock_plot(output_directory)
 
     # Plot price comparison
     # price_comparison_plot(output_directory)
