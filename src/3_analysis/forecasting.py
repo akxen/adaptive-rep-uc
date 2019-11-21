@@ -196,12 +196,12 @@ def run_quantile_regression_example(s, output_dir):
         return pd.concat(dfs, axis=1)
 
     # Lagged values, including latest data point (lag = 0)
-    lags = get_lags(s, intervals=5, direction='past')
+    lags = get_lags(s, intervals=6, direction='past')
     lags = pd.concat([s.to_frame('lag_0'), lags], axis=1)
     lags = lags.drop((2019, 1))
 
     # Future intervals
-    future = get_lags(s, intervals=4, direction='future')
+    future = get_lags(s, intervals=3, direction='future')
 
     # Construct dataset with lagged and future values
     dataset = pd.concat([lags, future], axis=1).dropna(how='any')
@@ -213,7 +213,7 @@ def run_quantile_regression_example(s, output_dir):
     # Run model for each quantile
     for q in [0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9]:
         results[q] = {}
-        for p in range(1, 5):
+        for p in range(1, 4):
             # Construct and fit model
             m = sm.QuantReg(dataset.loc[:, f'future_{p}'], x)
             res = m.fit(q=q)

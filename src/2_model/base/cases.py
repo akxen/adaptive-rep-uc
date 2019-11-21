@@ -7,7 +7,7 @@ import numpy as np
 
 from uc import UnitCommitment
 from mpc import MPCController
-from forecast import Forecast
+from forecast import PersistenceForecast
 from analysis import AnalyseResults
 
 
@@ -90,7 +90,7 @@ class ModelCases:
         mpc = MPCController()
 
         # Objects used to generate forecasts for MPC updating model and analyse model results
-        forecast = Forecast()
+        forecast = PersistenceForecast()
         analysis = AnalyseResults()
 
         # Construct UC and MPC models
@@ -341,9 +341,25 @@ class ModelCases:
                                             'baseline_update_required': True}
                                        for i in range(1, 7)}
 
+        # Persistence-based forecast - 3 calibration intervals for 2017-2018
+        persistence_forecast_params = {f'persistence_forecast':
+                                           {'years': [2017, 2018], 'weeks': weeks, 'days': days,
+                                            'overlap_intervals': 17,
+                                            'calibration_intervals': 3,
+                                            'scenarios': 1,
+                                            'baseline_start': 1,
+                                            'case_name': f'persistence_forecast',
+                                            'output_dir': os.path.join(output_dir, f'persistence_forecast'),
+                                            'revenue_floor': None,
+                                            'revenue_target': {w: float(0) for w in weeks},
+                                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
+                                                             m_d.G},
+                                            'baseline_update_required': True},
+                                       }
+
         # Testing probabilistic forecast method
         probalistic_forecast_params = {'probabilistic_forecast':
-                                           {'years': years, 'weeks': weeks, 'days': days,
+                                           {'years': [2017, 2018], 'weeks': weeks, 'days': days,
                                             'overlap_intervals': 17,
                                             'calibration_intervals': 3,
                                             'scenarios': 5,
@@ -359,7 +375,7 @@ class ModelCases:
                                        }
 
         # Combine all cases into a single dictionary
-        case_params = {**case_params, **calibration_interval_params}
+        case_params = {**case_params, **calibration_interval_params, **persistence_forecast_params}
 
         return case_params
 

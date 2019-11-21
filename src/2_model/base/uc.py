@@ -1021,6 +1021,12 @@ class UnitCommitment:
 
         if day == 1:
             week = week - 1
+
+            # If beginning of following year
+            if week == 0:
+                year = year - 1
+                week = 52
+
             day = 7
         else:
             day = day - 1
