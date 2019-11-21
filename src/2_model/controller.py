@@ -15,7 +15,7 @@ if __name__ == '__main__':
     cases = ModelCases()
 
     # Generate case parameters for given year and week ranges
-    case_parameters = cases.generate_cases(years=[2018], weeks=range(1, 3), output_dir=output_directory)
+    case_parameters = cases.generate_cases(years=[2018], weeks=range(1, 53), output_dir=output_directory)
 
     # Run all cases
     for name, parameters in case_parameters.items():
