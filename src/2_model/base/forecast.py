@@ -21,13 +21,33 @@ class PersistenceForecast:
         self.analysis = AnalyseResults()
 
     def get_energy_forecast_persistence(self, output_dir, year, week, n_intervals, eligible_generators):
-        """Get persistence based energy forecast. Energy output in previous week assumed same for following weeks."""
+        """
+        Get persistence based energy forecast. Energy output in previous week assumed same for following weeks.
+
+        Params
+        ------
+        output_dir : str
+            Path to directory containing output files
+
+        year : int
+
+
+        """
+
+        # Take into account end-of-year transition
+        if week == 1:
+            previous_interval_year = year - 1
+            previous_interval_week = 52
+        else:
+            previous_interval_year = year
+            previous_interval_week = week - 1
 
         # Container for energy output DataFrames
         dfs = []
 
         for day in range(1, 8):
-            df_o = self.analysis.get_generator_interval_results(output_dir, 'e', year, week-1, day)
+            df_o = self.analysis.get_generator_interval_results(output_dir, 'e', previous_interval_year,
+                                                                previous_interval_week, day)
             dfs.append(df_o)
 
         # Concatenate DataFrames
@@ -38,7 +58,9 @@ class PersistenceForecast:
                            if g in eligible_generators}
 
         # Assume probability = 1 for each scenario (only one scenario per calibration interval for persistence forecast)
-        probabilities = {(i, 1): float(1) for i in range(1, n_intervals + 1)}
+        # probabilities = {(g, c, 1): float(1) for c in range(1, n_intervals + 1)}
+        probabilities = {(g, c, 1): float(1) for g in df_c.sum().to_dict().keys() for c in range(1, n_intervals + 1)
+                         if g in eligible_generators}
 
         return energy_forecast, probabilities
 
@@ -192,6 +214,9 @@ if __name__ == '__main__':
     output_directory = os.path.join(os.path.dirname(__file__), os.path.pardir, 'output', '3_calibration_intervals')
     y, w, intervals = 2018, 2, 3
 
+    persistence_forecast = PersistenceForecast()
+    # persistence_energy = persistence_forecast.get_energy_forecast_persistence(output_directory, )
+
     forecast = MonteCarloForecast()
     # e_forecast = forecast.get_energy_forecast_persistence(output_directory, y, w, intervals, ['AGLHAL', 'TORRA1'])
     # lagged, future = forecast.construct_dataset([2018], 30, lags=2)
@@ -231,7 +256,8 @@ if __name__ == '__main__':
     x_scen = range(10, 14)
     y_scen = [path_list[:, i] for i in range(0, paths)]
 
-    kmeans = KMeans(n_clusters=5, random_state=0).fit(path_list.T)
+    n_clusters = 10
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(path_list.T)
     clusters = kmeans.cluster_centers_
 
     fig, ax = plt.subplots()
@@ -240,7 +266,13 @@ if __name__ == '__main__':
     for i in range(0, paths):
         ax.plot(x_scen, y_scen[i], color='r', alpha=0.5)
 
-    for i in range(0, 5):
+    for i in range(0, 10):
         ax.plot(x_scen, clusters[i], color='k')
     plt.show()
 
+    # (g, c, s)
+    scenario_energy = {('ARWF1', c, s): clusters[s-1][c] for c in range(1, forecast_intervals + 1) for s in range(1, n_clusters + 1)}
+
+    cluster_assignment = np.unique(kmeans.labels_, return_counts=True)
+
+    scenario_probability = {('ARWF1', s): cluster_assignment[1][s-1] / paths for s in range(1, n_clusters + 1)}

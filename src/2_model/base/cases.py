@@ -146,23 +146,36 @@ class ModelCases:
                     # Unfix binary variables
                     m_uc = uc.unfix_binary_variables(m_uc)
 
-                    if (d == 7) and (w <= max(params['weeks']) - 1) and params['baseline_update_required']:
-                        # Get cumulative scheme revenue
-                        cumulative_revenue = analysis.get_cumulative_scheme_revenue(params['output_dir'], y, w + 1)
+                    # Check if next week will be the last calibration interval in
+                    next_week_is_last_interval = (w == max(params['weeks'])) and (y == max(params['years']))
 
-                        # Get generator energy forecast for following calibration intervals
+                    # if (d == 7) and (w <= max(params['weeks']) - 1) and params['baseline_update_required']:
+                    if (d == 7) and (not next_week_is_last_interval) and params['baseline_update_required']:
+
+                        # Year and week index for next interval. Take into account year changing
+                        if w == max(params['weeks']):
+                            next_w = 1
+                            next_y = y + 1
+                        else:
+                            next_w = w + 1
+                            next_y = y
+
+                        # Get cumulative scheme revenue
+                        cumulative_revenue = analysis.get_cumulative_scheme_revenue(params['output_dir'], next_y, next_y)
+
+                        # Get generator energy forecast for next set of calibration intervals
                         energy_forecast, probabilities = forecast.get_energy_forecast_persistence(
                             output_dir=params['output_dir'],
-                            year=y,
-                            week=w + 1,
+                            year=next_y,
+                            week=next_w,
                             n_intervals=params['calibration_intervals'],
                             eligible_generators=m_mpc.G)
 
                         # Get updated baselines
-                        mpc_results = mpc.run_baseline_updater(m_mpc, y, w + 1,
+                        mpc_results = mpc.run_baseline_updater(m_mpc, next_y, next_w,
                                                                baseline_start=m_uc.BASELINE[1].value,
                                                                revenue_start=cumulative_revenue,
-                                                               revenue_target=params['revenue_target'][w + 1],
+                                                               revenue_target=params['revenue_target'][next_y][next_w],
                                                                revenue_floor=params['revenue_floor'],
                                                                permit_price={k: v.value for k, v in
                                                                              m_uc.PERMIT_PRICE.items()},
@@ -170,7 +183,7 @@ class ModelCases:
                                                                scenario_probabilities=probabilities)
 
                         # Save MPC results
-                        mpc.save_results(y, w + 1, mpc_results, params['output_dir'])
+                        mpc.save_results(next_y, next_w, mpc_results, params['output_dir'])
 
                         # Update baseline (starting at beginning of following day)
                         for h in [t for t in m_uc.T if t > 24]:
@@ -199,8 +212,8 @@ class ModelCases:
                         for h in m_uc.T:
                             m_uc.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
-                    if ((params['case_name'] == 'emissions_intensity_shock') and (w == params['emissions_shock_week'])
-                            and (d == 1)):
+                    if ((params['case_name'] == 'emissions_intensity_shock') and (y == params['emissions_shock_year'])
+                            and (w == params['emissions_shock_week']) and (d == 1)):
                         # Applying new emissions intensities for coming calibration interval (misaligned with forecast)
                         for g in m_uc.G:
                             print(f'UC old emissions intensity {g}: {m_uc.EMISSIONS_RATE[g].value}')
@@ -230,13 +243,22 @@ class ModelCases:
 
         # Positive revenue target. Earn 10,000,000 over 10 calibration intervals. 4 lookahead intervals when updating.
         revenue_target = {}
-        for week in weeks:
-            if week < 10:
-                revenue_target[week] = 0
-            elif (week >= 10) and (week <= 20):
-                revenue_target[week] = (week - 10) * 1000000
-            else:
-                revenue_target[week] = 10 * 1000000
+        for i, year in enumerate(years):
+            revenue_target[year] = {}
+
+            for week in weeks:
+
+                # If in the first year, before the revenue ramp-up period
+                if (week < 10) and (i == 0):
+                    revenue_target[year][week] = 0
+
+                # If in the revenue ramp-up period
+                elif (week >= 10) and (week <= 20) and (i == 0):
+                    revenue_target[year][week] = (week - 10) * 1000000
+
+                # Else, keep the revenue target constant
+                else:
+                    revenue_target[year][week] = 10 * 1000000
 
         # Emissions intensity shock at week 10
         np.random.seed(10)
@@ -252,7 +274,7 @@ class ModelCases:
                             'case_name': 'bau',
                             'output_dir': os.path.join(output_dir, 'bau'),
                             'revenue_floor': None,
-                            'revenue_target': {w: float(0) for w in weeks},
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                             'permit_price': {g: float(0) for g in m_d.G},
                             'baseline_update_required': False},
 
@@ -265,7 +287,7 @@ class ModelCases:
                             'case_name': 'carbon_tax',
                             'output_dir': os.path.join(output_dir, 'carbon_tax'),
                             'revenue_floor': None,
-                            'revenue_target': {w: float(0) for w in weeks},
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                             'permit_price': {g: float(40) for g in m_d.G},
                             'baseline_update_required': False},
 
@@ -291,9 +313,10 @@ class ModelCases:
                             'case_name': 'emissions_intensity_shock',
                             'output_dir': os.path.join(output_dir, 'emissions_intensity_shock'),
                             'revenue_floor': None,
-                            'revenue_target': {w: float(0) for w in weeks},
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
                             'emissions_shock_factor': emissions_shock_factor,
+                            'emissions_shock_year': 2018,
                             'emissions_shock_week': 10,
                             'baseline_update_required': True},
 
@@ -306,7 +329,7 @@ class ModelCases:
                             'case_name': 'renewables_eligibility',
                             'output_dir': os.path.join(output_dir, 'renewables_eligibility'),
                             'revenue_floor': None,
-                            'revenue_target': {w: float(0) for w in weeks},
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                             'permit_price': {g: float(40) if g in m_d.G_THERM.union(m_d.G_WIND, m_d.G_SOLAR) else
                             float(0) for g in m_d.G},
                             'baseline_update_required': True},
@@ -320,7 +343,7 @@ class ModelCases:
                             'case_name': 'revenue_floor',
                             'output_dir': os.path.join(output_dir, 'revenue_floor'),
                             'revenue_floor': -1e6,
-                            'revenue_target': {w: float(0) for w in weeks},
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
                             'baseline_update_required': True},
                        }
@@ -335,7 +358,7 @@ class ModelCases:
                                             'case_name': f'{i}_calibration_intervals',
                                             'output_dir': os.path.join(output_dir, f'{i}_calibration_intervals'),
                                             'revenue_floor': None,
-                                            'revenue_target': {w: float(0) for w in weeks},
+                                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
                                                              m_d.G},
                                             'baseline_update_required': True}
@@ -351,7 +374,7 @@ class ModelCases:
                                             'case_name': f'persistence_forecast',
                                             'output_dir': os.path.join(output_dir, f'persistence_forecast'),
                                             'revenue_floor': None,
-                                            'revenue_target': {w: float(0) for w in weeks},
+                                            'revenue_target': {y: {w: float(0) for w in weeks} for y in [2017, 2018]},
                                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
                                                              m_d.G},
                                             'baseline_update_required': True},
@@ -367,7 +390,7 @@ class ModelCases:
                                             'case_name': f'probabilistic_forecast',
                                             'output_dir': os.path.join(output_dir, 'probabilistic_forecast'),
                                             'revenue_floor': None,
-                                            'revenue_target': {w: float(0) for w in weeks},
+                                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
                                                              m_d.G},
                                             'baseline_update_required': True

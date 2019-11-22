@@ -51,7 +51,7 @@ class MPCController:
         m.ENERGY_FORECAST = Param(m.G, m.C, m.S, initialize=0, mutable=True)
 
         # Scenario probability
-        m.SCENARIO_PROBABILITY = Param(m.C, m.S, initialize=0, mutable=True)
+        m.SCENARIO_PROBABILITY = Param(m.G, m.C, m.S, initialize=0, mutable=True)
 
         # Permit price
         m.PERMIT_PRICE = Param(m.G, initialize=0, mutable=True)
@@ -94,7 +94,7 @@ class MPCController:
         def generator_expected_revenue_rule(_m, g, c):
             """Expected revenue over all scenarios for a given calibration interval"""
 
-            return sum(m.GENERATOR_SCENARIO_REVENUE[g, c, s] * m.SCENARIO_PROBABILITY[c, s] for s in m.S)
+            return sum(m.GENERATOR_SCENARIO_REVENUE[g, c, s] * m.SCENARIO_PROBABILITY[g, c, s] for s in m.S)
 
         # Generator expected revenue
         m.GENERATOR_EXPECTED_REVENUE = Expression(m.G, m.C, rule=generator_expected_revenue_rule)
@@ -278,3 +278,5 @@ if __name__ == '__main__':
     mpc = MPCController()
 
     model_year, model_week, model_day = 2018, 2, 1
+
+    model = mpc.construct_model(mpc.data.generators.index, n_intervals=3, n_scenarios=5)

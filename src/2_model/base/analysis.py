@@ -73,10 +73,17 @@ class AnalyseResults:
 
         cumulative_revenue = 0
 
+        # Year-week threshold
+        year_week_threshold = int(f'{year}{week:02}')
+
         for f in files:
             y, w, d = int(f.split('_')[1]), int(f.split('_')[2]), int(f.split('_')[3].replace('.pickle', ''))
 
-            if (y <= year) and (w < week):
+            # Unique year-week identified. E.g. 201705, 201712
+            file_year_week = int(f'{y}{w:02}')
+
+            # if (y <= year) and (w < week):
+            if file_year_week < year_week_threshold:
                 with open(os.path.join(output_dir, f), 'rb') as g:
                     results = pickle.load(g)
 
