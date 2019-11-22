@@ -83,18 +83,18 @@ class MPCController:
     def define_expressions(m):
         """Define model expressions"""
 
-        def generator_scenario_revenue_rule(_m, g, c, s):
+        def generator_scenario_revenue_rule(_m, g, s, c):
             """Revenue obtained from generator for a given scenario realisation"""
 
-            return (m.EMISSIONS_RATE[g] - m.baseline[c]) * m.ENERGY_FORECAST[g, c, s] * m.PERMIT_PRICE[g]
+            return (m.EMISSIONS_RATE[g] - m.baseline[c]) * m.ENERGY_FORECAST[g, s, c] * m.PERMIT_PRICE[g]
 
         # Generator revenue from a given scenario realisation
-        m.GENERATOR_SCENARIO_REVENUE = Expression(m.G, m.C, m.S, rule=generator_scenario_revenue_rule)
+        m.GENERATOR_SCENARIO_REVENUE = Expression(m.G, m.S, m.C, rule=generator_scenario_revenue_rule)
 
         def generator_expected_revenue_rule(_m, g, c):
             """Expected revenue over all scenarios for a given calibration interval"""
 
-            return sum(m.GENERATOR_SCENARIO_REVENUE[g, c, s] * m.SCENARIO_PROBABILITY[g, s] for s in m.S)
+            return sum(m.GENERATOR_SCENARIO_REVENUE[g, s, c] * m.SCENARIO_PROBABILITY[g, s] for s in m.S)
 
         # Generator expected revenue
         m.GENERATOR_EXPECTED_REVENUE = Expression(m.G, m.C, rule=generator_expected_revenue_rule)
