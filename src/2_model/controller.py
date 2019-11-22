@@ -2,10 +2,10 @@
 
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'base'))
 
 from base.cases import ModelCases
-
 
 if __name__ == '__main__':
     # Directory for output files
@@ -18,8 +18,8 @@ if __name__ == '__main__':
     case_parameters = cases.generate_cases(years=[2018], weeks=range(1, 53), output_dir=output_directory)
 
     # Run all cases
-    # for name, parameters in case_parameters.items():
-    for name, parameters in [('persistence_forecast', case_parameters['persistence_forecast'])]:
+    # for name, parameters in [('persistence_forecast', case_parameters['persistence_forecast'])]:
+    for name, parameters in case_parameters.items():
         print(f'Running case: {name}')
         print(parameters)
 

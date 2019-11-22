@@ -47,11 +47,11 @@ class MPCController:
     def define_parameters(m):
         """Define model parameters"""
 
-        # Generator energy output - forecast over calibration interval
-        m.ENERGY_FORECAST = Param(m.G, m.C, m.S, initialize=0, mutable=True)
+        # Generator energy output - forecast over calibration interval for given scenarios
+        m.ENERGY_FORECAST = Param(m.G, m.S, m.C, initialize=0, mutable=True)
 
         # Scenario probability
-        m.SCENARIO_PROBABILITY = Param(m.G, m.C, m.S, initialize=0, mutable=True)
+        m.SCENARIO_PROBABILITY = Param(m.G, m.S, initialize=0, mutable=True)
 
         # Permit price
         m.PERMIT_PRICE = Param(m.G, initialize=0, mutable=True)
@@ -94,7 +94,7 @@ class MPCController:
         def generator_expected_revenue_rule(_m, g, c):
             """Expected revenue over all scenarios for a given calibration interval"""
 
-            return sum(m.GENERATOR_SCENARIO_REVENUE[g, c, s] * m.SCENARIO_PROBABILITY[g, c, s] for s in m.S)
+            return sum(m.GENERATOR_SCENARIO_REVENUE[g, c, s] * m.SCENARIO_PROBABILITY[g, s] for s in m.S)
 
         # Generator expected revenue
         m.GENERATOR_EXPECTED_REVENUE = Expression(m.G, m.C, rule=generator_expected_revenue_rule)

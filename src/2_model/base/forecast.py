@@ -54,13 +54,11 @@ class PersistenceForecast:
         df_c = pd.concat(dfs)
 
         # Energy forecast
-        energy_forecast = {(g, c, 1): v for g, v in df_c.sum().to_dict().items() for c in range(1, n_intervals + 1)
+        energy_forecast = {(g, 1, c): v for g, v in df_c.sum().to_dict().items() for c in range(1, n_intervals + 1)
                            if g in eligible_generators}
 
         # Assume probability = 1 for each scenario (only one scenario per calibration interval for persistence forecast)
-        # probabilities = {(g, c, 1): float(1) for c in range(1, n_intervals + 1)}
-        probabilities = {(g, c, 1): float(1) for g in df_c.sum().to_dict().keys() for c in range(1, n_intervals + 1)
-                         if g in eligible_generators}
+        probabilities = {(g, 1): float(1) for g in df_c.sum().to_dict().keys() if g in eligible_generators}
 
         return energy_forecast, probabilities
 

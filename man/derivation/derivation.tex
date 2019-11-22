@@ -626,12 +626,12 @@ subject to
 \newcommand{\cTotalCalibrationIntervals}{K}
 
 \begin{equation}
-	\cSchemeRevenue[\iCalibrationInterval] + \sum\limits_{\iCalibrationIntervalAlias=\iCalibrationInterval}^{\iCalibrationInterval + \cTotalCalibrationIntervals} \sum\limits_{\iGenerator \in \sGenerators} \sum\limits_{\iScenario \in \sScenarios} \cScenarioProbibility \left(\cCalibrationIntervalEmissions - \vBaseline[\iCalibrationIntervalAlias]\right) \cCalibrationIntervalEnergy[\iGenerator,\iCalibrationIntervalAlias,\iScenario] \vPermitPrice[\iCalibrationIntervalAlias] = \cSchemeRevenue[\iCalibrationInterval+\cTotalCalibrationIntervals]
+	\cSchemeRevenue[\iCalibrationInterval] + \sum\limits_{\iCalibrationIntervalAlias=\iCalibrationInterval}^{\iCalibrationInterval + \cTotalCalibrationIntervals} \sum\limits_{\iGenerator \in \sGenerators} \sum\limits_{\iScenario \in \sScenarios} \cScenarioProbibility \left(\cCalibrationIntervalEmissions - \vBaseline[\iCalibrationIntervalAlias]\right) \cCalibrationIntervalEnergy[\iGenerator,\iScenario,\iCalibrationIntervalAlias] \vPermitPrice[\iCalibrationIntervalAlias] = \cSchemeRevenue[\iCalibrationInterval+\cTotalCalibrationIntervals]
 	\label{eqn: revenue target}
 \end{equation}
 
 \begin{equation}
-	\cSchemeRevenue[\iCalibrationInterval] + \sum\limits_{\iCalibrationIntervalAlias=\iCalibrationInterval}^{\iCalibrationInterval + i} \sum\limits_{\iGenerator \in \sGenerators} \sum\limits_{\iScenario \in \sScenarios} \cScenarioProbibility \left(\cCalibrationIntervalEmissions - \vBaseline[\iCalibrationIntervalAlias]\right) \cCalibrationIntervalEnergy[\iGenerator,\iCalibrationIntervalAlias,\iScenario] \vPermitPrice[\iCalibrationIntervalAlias] \geq \cSchemeRevenueLowerBound \quad \forall i \in \left[1, 2, \ldots, \cTotalCalibrationIntervals \right]
+	\cSchemeRevenue[\iCalibrationInterval] + \sum\limits_{\iCalibrationIntervalAlias=\iCalibrationInterval}^{\iCalibrationInterval + i} \sum\limits_{\iGenerator \in \sGenerators} \sum\limits_{\iScenario \in \sScenarios} \cScenarioProbibility \left(\cCalibrationIntervalEmissions - \vBaseline[\iCalibrationIntervalAlias]\right) \cCalibrationIntervalEnergy[\iGenerator,\iScenario,\iCalibrationIntervalAlias] \vPermitPrice[\iCalibrationIntervalAlias] \geq \cSchemeRevenueLowerBound \quad \forall i \in \left[1, 2, \ldots, \cTotalCalibrationIntervals \right]
 	\label{eqn: lower revenue limit}
 \end{equation}
 
