@@ -6,10 +6,13 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy.stats import norm
+from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 
 from data import ModelData
 from analysis import AnalyseResults
+
+np.random.seed(10)
 
 
 class PersistenceForecast:
@@ -197,14 +200,47 @@ if __name__ == '__main__':
     df = forecast.get_observed_energy(output_directory, [2018], 30)
     df_wk = df.groupby(['year', 'week']).sum()
 
+    max_energy = forecast.data.generators.loc['ARWF1', 'REG_CAP'] * 24 * 7
+
     # change = df_wk.pct_change().fillna(0) + 1
-    change = df_wk['ARWF1'].copy()
-    u = change.mean()
-    var = change.var()
-    drift = u - (0.5 * var)
-    stdev = change.std()
+    energy = df_wk['ARWF1'].copy()
+    log_pct_change = np.log(1 + energy.pct_change())
+    mean = log_pct_change.mean()
+    var = log_pct_change.var()
+    drift = mean - (0.5 * var)
+    stdev = log_pct_change.std()
 
-    t_intervals = 3
-    iterations = 10
+    forecast_intervals = 3
+    paths = 500
 
-    series = np.exp(drift + stdev * norm.ppf(np.random.rand(t_intervals, iterations)))
+    energy_paths = np.exp(drift + stdev * norm.ppf(np.random.rand(forecast_intervals, paths)))
+
+    S0 = energy.iloc[-1]
+    path_list = np.zeros((forecast_intervals + 1, paths))
+    path_list[0] = path_list[0] + S0
+
+    for i in range(1, forecast_intervals + 1):
+        path_list[i] = path_list[i-1] * energy_paths[i-1]
+
+        # Ensure energy limit observed
+        path_list[i][path_list[i] > max_energy] = max_energy
+
+    x_obs = range(1, 11)
+    y_obs = energy.iloc[-10:].values
+
+    x_scen = range(10, 14)
+    y_scen = [path_list[:, i] for i in range(0, paths)]
+
+    kmeans = KMeans(n_clusters=5, random_state=0).fit(path_list.T)
+    clusters = kmeans.cluster_centers_
+
+    fig, ax = plt.subplots()
+    ax.plot(x_obs, y_obs, color='b')
+
+    for i in range(0, paths):
+        ax.plot(x_scen, y_scen[i], color='r', alpha=0.5)
+
+    for i in range(0, 5):
+        ax.plot(x_scen, clusters[i], color='k')
+    plt.show()
+
