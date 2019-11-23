@@ -144,7 +144,7 @@ class ProbabilisticForecast:
 
         # Run model for each quantile
         for duid in duids:
-        # for duid in ['ARWF1']:
+            # for duid in [duid]:
             results[duid] = {}
 
             # Lagged values
@@ -174,7 +174,8 @@ class ProbabilisticForecast:
                         res = m.fit(q=q)
 
                         # Make prediction for last time point
-                        last_observation = lagged.loc[:, [f'{duid}_lag_{i}' for i in range(0, lags + 1)]].iloc[-1].values
+                        last_observation = lagged.loc[:, [f'{duid}_lag_{i}' for i in range(0, lags + 1)]].iloc[
+                            -1].values
                         pred = res.predict(last_observation)[0]
                         results[duid][f][q] = pred
 
@@ -207,70 +208,198 @@ class MonteCarloForecast:
 
         return df_c
 
+    def get_weekly_energy(self, year, week, start_year=2018):
+        """Compute weekly generator energy output for all weeks preceding 'year' and 'week'"""
+
+        df = self.get_observed_energy(output_directory, range(start_year, year + 1), week)
+        energy = df.groupby(['year', 'week']).sum()
+
+        return energy
+
+    def get_max_energy(self, duid):
+        """Compute max weekly energy output if generator output at max capacity for whole week"""
+
+        # Max weekly energy output
+        if duid in self.data.generators.index:
+            max_energy = self.data.generators.loc[duid, 'REG_CAP'] * 24 * 7
+
+        # Must spend at least half the time charging if a storage unit (assumes charging and discharging rates are same)
+        elif duid in self.data.storage.index:
+            max_energy = (self.data.storage.loc[duid, 'REG_CAP'] * 24 * 7) / 2
+
+        else:
+            raise Exception(f'Unidentified DUID: {duid}')
+
+        return max_energy
+
+    def get_scenarios(self, energy, duid, n_intervals, n_clusters, n_random_paths):
+        """
+        Get randomised scenarios
+
+        Params
+        ------
+        energy : pandas DataFrame
+            Weekly energy output for each generator
+
+        duid : str
+            Dispatchable Unit Identifier for generator
+
+        n_intervals : int
+            Number of forecast intervals
+
+        n_clusters : int
+            Number of centroid clusters
+
+        n_random_paths : int
+            Number of randomised scenario paths. These will be clustered to yield the final set of scenarios.
+
+        Returns
+        -------
+        scenario_energy : dict
+            Energy output paths over future calibration intervals
+
+        scenario_weights : dict
+            Probability corresponding to each scenario
+        """
+
+        # Weekly energy output (series) for a given DUID
+        s = energy[duid]
+
+        # Max possible energy output over coming week
+        max_energy = self.get_max_energy(duid)
+
+        # Compute log pct change
+        log_pct_change = np.log(1 + s.pct_change())
+
+        # Compute mean, variance, drift term, and standard deviation
+        mean = log_pct_change.mean()
+        var = log_pct_change.var()
+        drift = mean - (0.5 * var)
+        std = log_pct_change.std()
+
+        # Randomised paths
+        random_paths = np.exp(drift + std * norm.ppf(np.random.rand(n_intervals, n_random_paths)))
+
+        # NaNs occur when dividing 0/0 (e.g. generator is off over consecutive weeks
+        random_paths[np.isnan(random_paths)] = 0
+
+        # Last observed values for weekly energy output
+        last_observation = s.iloc[-1]
+
+        # Initialise array in which randomised paths will be stored (all zeros)
+        energy_paths = np.zeros((n_intervals + 1, n_random_paths))
+
+        # First row in array will be last observed value
+        energy_paths[0] = energy_paths[0] + last_observation
+
+        for i in range(1, n_intervals + 1):
+            # Compute energy over forecast horizon
+            energy_paths[i] = energy_paths[i - 1] * random_paths[i - 1]
+
+            # Ensure energy limit observed
+            energy_paths[i][energy_paths[i] > max_energy] = max_energy
+
+        # Construct K-means classifier and fit to randomised energy paths
+        k_means = KMeans(n_clusters=n_clusters, random_state=0).fit(energy_paths.T)
+
+        # Get cluster centroids (these are will be the energy paths used in the analysis
+        clusters = k_means.cluster_centers_
+
+        # Get scenario energy in format to be consumed by model
+        scenario_energy = {(duid, s, c): clusters[s - 1][c] for s in range(1, n_clusters + 1)
+                           for c in range(1, n_intervals + 1)}
+
+        # Determine number of randomised paths assigned to each cluster
+        cluster_assignment = np.unique(k_means.labels_, return_counts=True)
+
+        # Compute probabilities for each scenario
+        probabilities = {cluster + 1: cluster_assignment[1][index] / n_random_paths
+                         for index, cluster in enumerate(cluster_assignment[0])}
+
+        # May need to pad scenario probabilities (e.g. if only one cluster returned)
+        for s in set(range(1, n_clusters + 1)).difference(set([i + 1 for i in cluster_assignment[0]])):
+            # If cluster ID missing, set probability to zero
+            probabilities[s] = 0
+
+        # Weighting assigned to each scenario (random paths assigned to scenario / total number of randomised paths)
+        scenario_weights = {(duid, s): probabilities[s] for s in range(1, n_clusters + 1)}
+
+        return scenario_energy, scenario_weights
+
+    def get_scenarios_historic_update(self, energy, duid, n_intervals, n_random_paths, n_clusters):
+        """Randomly sample based on difference in energy output between successive weeks"""
+
+        # Max energy output
+        max_energy = self.get_max_energy(duid)
+
+        # Last observation for given DUID
+        last_observation = energy[duid].iloc[-1]
+
+        # Container for all random paths
+        energy_paths = []
+
+        for r in range(1, n_random_paths + 1):
+            # Container for randomised calibration interval observations
+            interval = [last_observation]
+            for c in range(1, n_intervals + 1):
+                # Update
+                update = np.random.normal(energy[duid].diff(1).mean(), energy[duid].diff(1).std())
+
+                # New observation
+                new_observation = last_observation + update
+
+                # Check that new observation doesn't violate upper and lower revenue bounds
+                if new_observation > max_energy:
+                    new_observation = max_energy
+                elif new_observation < 0:
+                    new_observation = 0
+
+                # Append to container
+                interval.append(new_observation)
+
+            # Append to random paths container
+            energy_paths.append(interval)
+
+        # Construct K-means classifier and fit to randomised energy paths
+        k_means = KMeans(n_clusters=n_clusters, random_state=0).fit(energy_paths)
+
+        # Get cluster centroids (these are will be the energy paths used in the analysis
+        clusters = k_means.cluster_centers_
+
+        # Get scenario energy in format to be consumed by model
+        scenario_energy = {(duid, s, c): clusters[s - 1][c] for s in range(1, n_clusters + 1)
+                           for c in range(1, n_intervals + 1)}
+
+        # Determine number of randomised paths assigned to each cluster
+        assignment = np.unique(k_means.labels_, return_counts=True)
+
+        # Weighting dependent on number of paths assigned to each scenarios
+        scenario_weights = {k + 1: v / n_random_paths for k, v in zip(assignment[0], assignment[1])}
+
+        return scenario_energy, scenario_weights
+
 
 if __name__ == '__main__':
     output_directory = os.path.join(os.path.dirname(__file__), os.path.pardir, 'output', '3_calibration_intervals')
-    y, w, intervals = 2018, 2, 3
 
-    persistence_forecast = PersistenceForecast()
-    # persistence_energy = persistence_forecast.get_energy_forecast_persistence(output_directory, )
-
+    # persistence_forecast = PersistenceForecast()
     forecast = MonteCarloForecast()
-    # e_forecast = forecast.get_energy_forecast_persistence(output_directory, y, w, intervals, ['AGLHAL', 'TORRA1'])
-    # lagged, future = forecast.construct_dataset([2018], 30, lags=2)
-    # models = forecast.construct_quantile_regression_models([2018], 30, lags=2, future_intervals=3)
 
-    df = forecast.get_observed_energy(output_directory, [2018], 30)
-    df_wk = df.groupby(['year', 'week']).sum()
+    # Weekly energy output for a given week
+    energy = forecast.get_weekly_energy(2018, 30, start_year=2018)
 
-    max_energy = forecast.data.generators.loc['ARWF1', 'REG_CAP'] * 24 * 7
+    duid = 'GANNBG1'
+    s_energy, s_weights = forecast.get_scenarios_historic_update(energy, duid, n_intervals=3, n_random_paths=500,
+                                                                 n_clusters=5)
 
-    # change = df_wk.pct_change().fillna(0) + 1
-    energy = df_wk['ARWF1'].copy()
-    log_pct_change = np.log(1 + energy.pct_change())
-    mean = log_pct_change.mean()
-    var = log_pct_change.var()
-    drift = mean - (0.5 * var)
-    stdev = log_pct_change.std()
+    n_clusters, n_intervals = 5, 3
+    scens = [[s_energy[(duid, s, c)] for c in range(1, n_intervals + 1)] for s in range(1, n_clusters + 1)]
 
-    forecast_intervals = 3
-    paths = 500
-
-    energy_paths = np.exp(drift + stdev * norm.ppf(np.random.rand(forecast_intervals, paths)))
-
-    S0 = energy.iloc[-1]
-    path_list = np.zeros((forecast_intervals + 1, paths))
-    path_list[0] = path_list[0] + S0
-
-    for i in range(1, forecast_intervals + 1):
-        path_list[i] = path_list[i-1] * energy_paths[i-1]
-
-        # Ensure energy limit observed
-        path_list[i][path_list[i] > max_energy] = max_energy
-
-    x_obs = range(1, 11)
-    y_obs = energy.iloc[-10:].values
-
-    x_scen = range(10, 14)
-    y_scen = [path_list[:, i] for i in range(0, paths)]
-
-    n_clusters = 10
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(path_list.T)
-    clusters = kmeans.cluster_centers_
+    x_obs = [x for x in range(energy.shape[0])]
+    x_pred = [x for x in range(x_obs[-1] + 1, x_obs[-1] + n_intervals + 1)]
 
     fig, ax = plt.subplots()
-    ax.plot(x_obs, y_obs, color='b')
-
-    for i in range(0, paths):
-        ax.plot(x_scen, y_scen[i], color='r', alpha=0.5)
-
-    for i in range(0, 10):
-        ax.plot(x_scen, clusters[i], color='k')
+    ax.plot(x_obs, energy[duid].values)
+    for s in scens:
+        ax.plot(x_pred, s, color='r')
     plt.show()
-
-    # (g, c, s)
-    scenario_energy = {('ARWF1', c, s): clusters[s-1][c] for c in range(1, forecast_intervals + 1) for s in range(1, n_clusters + 1)}
-
-    cluster_assignment = np.unique(kmeans.labels_, return_counts=True)
-
-    scenario_probability = {('ARWF1', s): cluster_assignment[1][s-1] / paths for s in range(1, n_clusters + 1)}
