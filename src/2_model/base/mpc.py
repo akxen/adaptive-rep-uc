@@ -7,7 +7,6 @@ from pyomo.environ import *
 from pyomo.util.infeasible import log_infeasible_constraints
 
 from data import ModelData
-from common import CommonComponents
 from analysis import AnalyseResults
 
 
@@ -17,9 +16,6 @@ class MPCController:
 
         # Object containing model data
         self.data = ModelData()
-
-        # Components common to both UC and MPC models
-        self.common = CommonComponents()
 
         # Class used to analyse model results
         self.analysis = AnalyseResults()
@@ -43,8 +39,7 @@ class MPCController:
 
         return m
 
-    @staticmethod
-    def define_parameters(m):
+    def define_parameters(self, m):
         """Define model parameters"""
 
         # Generator energy output - forecast over calibration interval for given scenarios
@@ -68,6 +63,14 @@ class MPCController:
         # Baseline in preceding calibration interval
         m.BASELINE_START = Param(initialize=0, mutable=True)
 
+        def emissions_intensity_rule(_m, g, c):
+            """Emissions intensity (tCO2/MWh)"""
+
+            return float(self.data.generators.loc[g, 'EMISSIONS'])
+
+        # Emissions intensities for all generators
+        m.EMISSIONS_RATE = Param(m.G, m.C, rule=emissions_intensity_rule, mutable=True)
+
         return m
 
     @staticmethod
@@ -86,7 +89,7 @@ class MPCController:
         def generator_scenario_revenue_rule(_m, g, s, c):
             """Revenue obtained from generator for a given scenario realisation"""
 
-            return (m.EMISSIONS_RATE[g] - m.baseline[c]) * m.ENERGY_FORECAST[g, s, c] * m.PERMIT_PRICE[g]
+            return (m.EMISSIONS_RATE[g, c] - m.baseline[c]) * m.ENERGY_FORECAST[g, s, c] * m.PERMIT_PRICE[g]
 
         # Generator revenue from a given scenario realisation
         m.GENERATOR_SCENARIO_REVENUE = Expression(m.G, m.S, m.C, rule=generator_scenario_revenue_rule)
@@ -173,9 +176,6 @@ class MPCController:
 
         # Define sets
         m = self.define_sets(m, generators, n_intervals, n_scenarios)
-
-        # Define parameters common to both MPC and UC models
-        m = self.common.define_parameters(m)
 
         # Define model parameters
         m = self.define_parameters(m)

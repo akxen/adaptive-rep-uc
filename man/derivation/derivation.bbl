@@ -1,0 +1,32 @@
+\begin{thebibliography}{1}
+\expandafter\ifx\csname url\endcsname\relax
+  \def\url#1{\texttt{#1}}\fi
+\expandafter\ifx\csname urlprefix\endcsname\relax\def\urlprefix{URL }\fi
+\expandafter\ifx\csname href\endcsname\relax
+  \def\href#1#2{#2} \def\path#1{#1}\fi
+
+\bibitem{morales-espana_tight_2015}
+G.~{Morales-Espa{\~n}a}, C.~Gentile, A.~Ramos, Tight {{MIP}} formulations of
+  the power-based unit commitment problem, OR Spectrum 37~(4) (2015) 929--950.
+\newblock \href {https://doi.org/10.1007/s00291-015-0400-4}
+  {\path{doi:10.1007/s00291-015-0400-4}}.
+
+\bibitem{pozo_unit_2014}
+D.~Pozo, J.~Contreras, E.~E. Sauma, Unit {{Commitment With Ideal}} and
+  {{Generic Energy Storage Units}}, IEEE Transactions on Power Systems 29~(6)
+  (2014) 2974--2984.
+\newblock \href {https://doi.org/10.1109/TPWRS.2014.2313513}
+  {\path{doi:10.1109/TPWRS.2014.2313513}}.
+
+\bibitem{riaz_computationally_2019-1}
+S.~Riaz, G.~Verbi{\v c}, A.~C. Chapman, Computationally {{Efficient Market
+  Simulation Tool}} for {{Future Grid Scenario Analysis}}, IEEE Transactions on
+  Smart Grid 10~(2) (2019) 1405--1416.
+\newblock \href {https://doi.org/10.1109/TSG.2017.2765662}
+  {\path{doi:10.1109/TSG.2017.2765662}}.
+
+\bibitem{aemc_integration_2016}
+{AEMC}, Integration of energy and emissions reduction policy, Tech. rep.,
+  {Australian Energy Market Commission}, {Sydney} (Dec. 2016).
+
+\end{thebibliography}

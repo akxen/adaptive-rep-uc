@@ -10,16 +10,12 @@ from pyomo.util.infeasible import log_infeasible_constraints
 
 from mpc import MPCController
 from data import ModelData
-from common import CommonComponents
 
 
 class UnitCommitment:
     def __init__(self):
         # Pre-processed data for model construction
         self.data = ModelData()
-
-        # Common model components
-        self.common = CommonComponents()
 
         # Solver options
         self.keepfiles = False
@@ -81,6 +77,14 @@ class UnitCommitment:
 
     def define_parameters(self, m):
         """Define unit commitment problem parameters"""
+
+        def emissions_intensity_rule(_m, g):
+            """Emissions intensity (tCO2/MWh)"""
+
+            return float(self.data.generators.loc[g, 'EMISSIONS'])
+
+        # Emissions intensities for all generators
+        m.EMISSIONS_RATE = Param(m.G, rule=emissions_intensity_rule, mutable=True)
 
         def minimum_region_up_reserve_rule(_m, r):
             """Minimum upward reserve rule"""
@@ -822,9 +826,6 @@ class UnitCommitment:
 
         # Define sets
         m = self.define_sets(m, overlap)
-
-        # Define parameters common to both UC and MPC models
-        m = self.common.define_parameters(m)
 
         # Define parameters specific to unit commitment sub-problem
         m = self.define_parameters(m)

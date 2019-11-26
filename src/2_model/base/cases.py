@@ -7,13 +7,14 @@ import numpy as np
 
 from uc import UnitCommitment
 from mpc import MPCController
+from data import ModelData
 from forecast import PersistenceForecast, MonteCarloForecast
 from analysis import AnalyseResults
 
 
 class ModelCases:
     def __init__(self):
-        pass
+        self.data = ModelData()
 
     @staticmethod
     def cleanup_directory(directory):
@@ -155,10 +156,10 @@ class ModelCases:
                     # Unfix binary variables
                     m_uc = uc.unfix_binary_variables(m_uc)
 
-                    # Check if next week will be the last calibration interval in
+                    # Check if next week will be the last calibration interval in the model horizon
                     next_week_is_last_interval = (w == max(params['weeks'])) and (y == max(params['years']))
 
-                    # if (d == 7) and (w <= max(params['weeks']) - 1) and params['baseline_update_required']:
+                    # If not the last week, and the baseline can be updated
                     if (d == 7) and (not next_week_is_last_interval) and params['baseline_update_required']:
 
                         # Year and week index for next interval. Take into account year changing
@@ -186,12 +187,26 @@ class ModelCases:
                                 eligible_generators=m_mpc.G)
 
                         else:
+                            # Use a persistence-based forecast
                             energy_forecast, probabilities = persistence_forecast.get_energy_forecast_persistence(
                                 output_dir=params['output_dir'],
                                 year=next_y,
                                 week=next_w,
                                 n_intervals=params['calibration_intervals'],
                                 eligible_generators=m_mpc.G)
+
+                        # Update emissions intensities if there is an anticipated emissions intensity shock
+                        if ((params['case_name'] == 'anticipated_emissions_intensity_shock')
+                                and (next_y == params['emissions_shock_year'])
+                                and (next_w > params['emissions_shock_week'] - params['calibration_intervals'])):
+
+                            # Emissions intensities for future calibration intervals when shock is anticipated
+                            for g in m_mpc.G:
+                                for c in range(max(params['emissions_shock_week'] - next_w + 1, 1),
+                                               params['calibration_intervals'] + 1):
+                                    # Update emissions intensities if shock week within the forecast horizon
+                                    m_mpc.EMISSIONS_RATE[g, c] = (params['emissions_shock_factor'][g]
+                                                                  * float(self.data.generators.loc[g, 'EMISSIONS']))
 
                         # Get updated baselines
                         mpc_results = mpc.run_baseline_updater(m_mpc, next_y, next_w,
@@ -234,8 +249,10 @@ class ModelCases:
                         for h in m_uc.T:
                             m_uc.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
-                    if ((params['case_name'] == 'emissions_intensity_shock') and (y == params['emissions_shock_year'])
-                            and (w == params['emissions_shock_week']) and (d == 1)):
+                    # Apply unanticipated emissions intensity shock if required
+                    if ((params['case_name'] == 'unanticipated_emissions_intensity_shock')
+                            and (y == params['emissions_shock_year']) and (w == params['emissions_shock_week'])
+                            and (d == 1)):
                         # Applying new emissions intensities for coming calibration interval (misaligned with forecast)
                         for g in m_uc.G:
                             print(f'UC old emissions intensity {g}: {m_uc.EMISSIONS_RATE[g].value}')
@@ -244,10 +261,11 @@ class ModelCases:
 
                         # Emissions intensities aligned for next calibration interval
                         for g in m_mpc.G:
-                            print(f'MPC old emissions intensity {g}: {m_mpc.EMISSIONS_RATE[g].value}')
-                            m_mpc.EMISSIONS_RATE[g] = params['emissions_shock_factor'][g] * m_mpc.EMISSIONS_RATE[
-                                g].value
-                            print(f'MPC new emissions intensity {g}: {m_mpc.EMISSIONS_RATE[g].value}')
+                            for c in m_mpc.C:
+                                print(f'MPC old emissions intensity {g}: {m_mpc.EMISSIONS_RATE[g, c].value}')
+                                m_mpc.EMISSIONS_RATE[g, c] = (params['emissions_shock_factor'][g]
+                                                              * m_mpc.EMISSIONS_RATE[g, c].value)
+                                print(f'MPC new emissions intensity {g}: {m_mpc.EMISSIONS_RATE[g, c].value}')
 
                     # Update rolling window counter
                     window += 1
@@ -326,14 +344,30 @@ class ModelCases:
                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
                             'baseline_update_required': True},
 
-                       'emissions_intensity_shock':
+                       'anticipated_emissions_intensity_shock':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
                             'calibration_intervals': 4,
                             'scenarios': 1,
                             'baseline_start': 1,
-                            'case_name': 'emissions_intensity_shock',
-                            'output_dir': os.path.join(output_dir, 'emissions_intensity_shock'),
+                            'case_name': 'anticipated_emissions_intensity_shock',
+                            'output_dir': os.path.join(output_dir, 'anticipated_emissions_intensity_shock'),
+                            'revenue_floor': None,
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
+                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
+                            'emissions_shock_factor': emissions_shock_factor,
+                            'emissions_shock_year': 2018,
+                            'emissions_shock_week': 10,
+                            'baseline_update_required': True},
+
+                       'unanticipated_emissions_intensity_shock':
+                           {'years': years, 'weeks': weeks, 'days': days,
+                            'overlap_intervals': 17,
+                            'calibration_intervals': 4,
+                            'scenarios': 1,
+                            'baseline_start': 1,
+                            'case_name': 'unanticipated_emissions_intensity_shock',
+                            'output_dir': os.path.join(output_dir, 'unanticipated_emissions_intensity_shock'),
                             'revenue_floor': None,
                             'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
@@ -413,7 +447,8 @@ class ModelCases:
                                                'case_name': 'multi_scenario_forecast',
                                                'output_dir': os.path.join(output_dir, 'multi_scenario_forecast'),
                                                'revenue_floor': None,
-                                               'revenue_target': {y: {w: float(0) for w in weeks} for y in [2017, 2018]},
+                                               'revenue_target': {y: {w: float(0) for w in weeks} for y in
+                                                                  [2017, 2018]},
                                                'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
                                                                 m_d.G},
                                                'baseline_update_required': True
