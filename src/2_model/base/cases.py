@@ -7,7 +7,7 @@ import numpy as np
 
 from uc import UnitCommitment
 from mpc import MPCController
-from forecast import PersistenceForecast
+from forecast import PersistenceForecast, MonteCarloForecast
 from analysis import AnalyseResults
 
 
@@ -78,7 +78,7 @@ class ModelCases:
 
         return m, flag
 
-    def run_case(self, params):
+    def run_case(self, params, hot_start=None):
         """Run case parameters"""
 
         # Save case parameters
@@ -90,7 +90,8 @@ class ModelCases:
         mpc = MPCController()
 
         # Objects used to generate forecasts for MPC updating model and analyse model results
-        forecast = PersistenceForecast()
+        persistence_forecast = PersistenceForecast()
+        scenario_forecast = MonteCarloForecast()
         analysis = AnalyseResults()
 
         # Construct UC and MPC models
@@ -115,11 +116,19 @@ class ModelCases:
         window = 1
         break_flag = False
 
-        for y in params['years']:
+        # Years and weeks over which to iterate. Adjust if having a hot-start
+        if hot_start is not None:
+            years = range(hot_start[0], max(params['years']) + 1)
+            weeks = range(hot_start[1], 53)
+        else:
+            years = params['years']
+            weeks = range(1, 53)
+
+        for y in years:
             if break_flag:
                 break
 
-            for w in params['weeks']:
+            for w in weeks:
                 if break_flag:
                     break
 
@@ -161,15 +170,28 @@ class ModelCases:
                             next_y = y
 
                         # Get cumulative scheme revenue
-                        cumulative_revenue = analysis.get_cumulative_scheme_revenue(params['output_dir'], next_y, next_y)
+                        cumulative_revenue = analysis.get_cumulative_scheme_revenue(params['output_dir'], next_y,
+                                                                                    next_y)
 
                         # Get generator energy forecast for next set of calibration intervals
-                        energy_forecast, probabilities = forecast.get_energy_forecast_persistence(
-                            output_dir=params['output_dir'],
-                            year=next_y,
-                            week=next_w,
-                            n_intervals=params['calibration_intervals'],
-                            eligible_generators=m_mpc.G)
+                        if (params['case_name'] == 'multi_scenario_forecast') and (next_y == 2018):
+                            energy_forecast, probabilities = scenario_forecast.get_scenarios(
+                                output_dir=params['output_dir'],
+                                year=next_y,
+                                week=next_w,
+                                start_year=min(params['years']),
+                                n_intervals=params['calibration_intervals'],
+                                n_random_paths=params['n_random_paths'],
+                                n_clusters=params['scenarios'],
+                                eligible_generators=m_mpc.G)
+
+                        else:
+                            energy_forecast, probabilities = persistence_forecast.get_energy_forecast_persistence(
+                                output_dir=params['output_dir'],
+                                year=next_y,
+                                week=next_w,
+                                n_intervals=params['calibration_intervals'],
+                                eligible_generators=m_mpc.G)
 
                         # Get updated baselines
                         mpc_results = mpc.run_baseline_updater(m_mpc, next_y, next_w,
@@ -381,24 +403,26 @@ class ModelCases:
                                        }
 
         # Testing probabilistic forecast method
-        probalistic_forecast_params = {'probabilistic_forecast':
-                                           {'years': [2017, 2018], 'weeks': weeks, 'days': days,
-                                            'overlap_intervals': 17,
-                                            'calibration_intervals': 3,
-                                            'scenarios': 5,
-                                            'baseline_start': 1,
-                                            'case_name': f'probabilistic_forecast',
-                                            'output_dir': os.path.join(output_dir, 'probabilistic_forecast'),
-                                            'revenue_floor': None,
-                                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
-                                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
-                                                             m_d.G},
-                                            'baseline_update_required': True
-                                            }
-                                       }
+        multi_scenario_forecast_params = {'multi_scenario_forecast':
+                                              {'years': [2017, 2018], 'weeks': weeks, 'days': days,
+                                               'overlap_intervals': 17,
+                                               'calibration_intervals': 3,
+                                               'scenarios': 5,
+                                               'n_random_paths': 500,
+                                               'baseline_start': 1,
+                                               'case_name': 'multi_scenario_forecast',
+                                               'output_dir': os.path.join(output_dir, 'multi_scenario_forecast'),
+                                               'revenue_floor': None,
+                                               'revenue_target': {y: {w: float(0) for w in weeks} for y in [2017, 2018]},
+                                               'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
+                                                                m_d.G},
+                                               'baseline_update_required': True
+                                               }
+                                          }
 
         # Combine all cases into a single dictionary
-        case_params = {**case_params, **calibration_interval_params, **persistence_forecast_params}
+        case_params = {**case_params, **calibration_interval_params, **persistence_forecast_params,
+                       **multi_scenario_forecast_params}
 
         return case_params
 
@@ -419,8 +443,8 @@ if __name__ == '__main__':
         print(parameters)
 
         # Create directory if it doesn't exist, and cleanup files
-        cases.create_case_directory(parameters['output_dir'])
-        cases.cleanup_directory(parameters['output_dir'])
+        # cases.create_case_directory(parameters['output_dir'])
+        # cases.cleanup_directory(parameters['output_dir'])
 
         # Run case
-        cases.run_case(parameters)
+        cases.run_case(parameters, hot_start=(2018, 1))
