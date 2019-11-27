@@ -253,7 +253,8 @@ class MPCController:
                       'baseline_start': m.BASELINE_START.value,
                       'revenue_start': m.REVENUE_START.value,
                       'revenue_target': m.REVENUE_TARGET.value,
-                      'revenue_floor': m.REVENUE_FLOOR.value}
+                      'revenue_floor': m.REVENUE_FLOOR.value,
+                      'generators': [g for g in m.G.keys()]}
 
         # MPC model results
         results = {'baseline_trajectory': m.baseline.get_values(),

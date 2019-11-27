@@ -208,11 +208,15 @@ class ModelCases:
                                     m_mpc.EMISSIONS_RATE[g, c] = (params['emissions_shock_factor'][g]
                                                                   * float(self.data.generators.loc[g, 'EMISSIONS']))
 
+                        # Compute revenue target to use when updating baselines
+                        revenue_target = self.get_mpc_revenue_target_input(next_y, next_w, params['revenue_target'],
+                                                                           params['calibration_intervals'])
+
                         # Get updated baselines
                         mpc_results = mpc.run_baseline_updater(m_mpc, next_y, next_w,
                                                                baseline_start=m_uc.BASELINE[1].value,
                                                                revenue_start=cumulative_revenue,
-                                                               revenue_target=params['revenue_target'][next_y][next_w],
+                                                               revenue_target=revenue_target,
                                                                revenue_floor=params['revenue_floor'],
                                                                permit_price={k: v.value for k, v in
                                                                              m_uc.PERMIT_PRICE.items()},
@@ -271,17 +275,10 @@ class ModelCases:
                     window += 1
 
     @staticmethod
-    def generate_cases(years, weeks, output_dir):
-        """Generate cases to run"""
+    def get_revenue_target(years, weeks):
+        """Construct revenue target to raise 30,000,000 over 10 calibration intervals"""
 
-        # UC dummy object
-        uc_d = UnitCommitment()
-        m_d = uc_d.construct_model(overlap=1)
-
-        # Days to be used in each case (1-7)
-        days = range(1, 8)
-
-        # Positive revenue target. Earn 10,000,000 over 10 calibration intervals. 4 lookahead intervals when updating.
+        # Positive revenue target. Earn 10,000,000 over 10 calibration intervals
         revenue_target = {}
         for i, year in enumerate(years):
             revenue_target[year] = {}
@@ -294,11 +291,55 @@ class ModelCases:
 
                 # If in the revenue ramp-up period
                 elif (week >= 10) and (week <= 20) and (i == 0):
-                    revenue_target[year][week] = (week - 10) * 1000000
+                    revenue_target[year][week] = (week - 10) * 3000000
 
                 # Else, keep the revenue target constant
                 else:
-                    revenue_target[year][week] = 10 * 1000000
+                    revenue_target[year][week] = 30 * 1000000
+
+            return revenue_target
+
+    @staticmethod
+    def get_mpc_revenue_target_input(year, week, revenue_trajectory, calibration_intervals):
+        """
+        Given a revenue target trajectory, determine the revenue target used in the MPC updating protocol. Note
+        that the MPC program looks forward in time, and the target will become relevant before the first ramp-up week.
+        """
+
+        # If at the end of given year, update the
+        if week + calibration_intervals > 52:
+            target_year = year + 1
+            target_week = week + calibration_intervals - 52
+
+        else:
+            target_year = year
+            target_week = week + calibration_intervals
+
+        # Revenue target at the end of the calibration interval horizon. Use value in final year of trajectory
+        # if out of bounds.
+        try:
+            revenue_target = revenue_trajectory[target_year][target_week]
+        except Exception as e:
+            print(e)
+            print('Using revenue target in last week of revenue trajectory')
+            final_year = max(revenue_trajectory.keys())
+            final_week = max(revenue_trajectory[final_year].keys())
+            revenue_target = revenue_trajectory[final_year][final_week]
+
+        return revenue_target
+
+    def generate_cases(self, years, weeks, output_dir):
+        """Generate cases to run"""
+
+        # UC dummy object
+        uc_d = UnitCommitment()
+        m_d = uc_d.construct_model(overlap=1)
+
+        # Days to be used in each case (1-7)
+        days = range(1, 8)
+
+        # Positive revenue target
+        revenue_target = self.get_revenue_target(years, weeks)
 
         # Emissions intensity shock at week 10
         np.random.seed(10)
@@ -331,10 +372,10 @@ class ModelCases:
                             'permit_price': {g: float(40) for g in m_d.G},
                             'baseline_update_required': False},
 
-                       'revenue_target':
+                       'revenue_target_1_ci':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
-                            'calibration_intervals': 4,
+                            'calibration_intervals': 1,
                             'scenarios': 1,
                             'baseline_start': 1,
                             'case_name': 'revenue_target',
@@ -344,10 +385,23 @@ class ModelCases:
                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
                             'baseline_update_required': True},
 
-                       'anticipated_emissions_intensity_shock':
+                       'revenue_target_3_ci':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
-                            'calibration_intervals': 4,
+                            'calibration_intervals': 3,
+                            'scenarios': 1,
+                            'baseline_start': 1,
+                            'case_name': 'revenue_target',
+                            'output_dir': os.path.join(output_dir, 'revenue_target'),
+                            'revenue_floor': None,
+                            'revenue_target': revenue_target,
+                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
+                            'baseline_update_required': True},
+
+                       'anticipated_emissions_intensity_shock_1_ci':
+                           {'years': years, 'weeks': weeks, 'days': days,
+                            'overlap_intervals': 17,
+                            'calibration_intervals': 1,
                             'scenarios': 1,
                             'baseline_start': 1,
                             'case_name': 'anticipated_emissions_intensity_shock',
@@ -360,10 +414,42 @@ class ModelCases:
                             'emissions_shock_week': 10,
                             'baseline_update_required': True},
 
-                       'unanticipated_emissions_intensity_shock':
+                       'anticipated_emissions_intensity_shock_3_ci':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
-                            'calibration_intervals': 4,
+                            'calibration_intervals': 3,
+                            'scenarios': 1,
+                            'baseline_start': 1,
+                            'case_name': 'anticipated_emissions_intensity_shock',
+                            'output_dir': os.path.join(output_dir, 'anticipated_emissions_intensity_shock'),
+                            'revenue_floor': None,
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
+                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
+                            'emissions_shock_factor': emissions_shock_factor,
+                            'emissions_shock_year': 2018,
+                            'emissions_shock_week': 10,
+                            'baseline_update_required': True},
+
+                       'unanticipated_emissions_intensity_shock_1_ci':
+                           {'years': years, 'weeks': weeks, 'days': days,
+                            'overlap_intervals': 17,
+                            'calibration_intervals': 1,
+                            'scenarios': 1,
+                            'baseline_start': 1,
+                            'case_name': 'unanticipated_emissions_intensity_shock',
+                            'output_dir': os.path.join(output_dir, 'unanticipated_emissions_intensity_shock'),
+                            'revenue_floor': None,
+                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
+                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
+                            'emissions_shock_factor': emissions_shock_factor,
+                            'emissions_shock_year': 2018,
+                            'emissions_shock_week': 10,
+                            'baseline_update_required': True},
+
+                       'unanticipated_emissions_intensity_shock_3_ci':
+                           {'years': years, 'weeks': weeks, 'days': days,
+                            'overlap_intervals': 17,
+                            'calibration_intervals': 3,
                             'scenarios': 1,
                             'baseline_start': 1,
                             'case_name': 'unanticipated_emissions_intensity_shock',
@@ -379,7 +465,7 @@ class ModelCases:
                        'renewables_eligibility':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
-                            'calibration_intervals': 4,
+                            'calibration_intervals': 3,
                             'scenarios': 1,
                             'baseline_start': 1,
                             'case_name': 'renewables_eligibility',
@@ -393,7 +479,7 @@ class ModelCases:
                        'revenue_floor':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
-                            'calibration_intervals': 4,
+                            'calibration_intervals': 3,
                             'scenarios': 1,
                             'baseline_start': 1,
                             'case_name': 'revenue_floor',

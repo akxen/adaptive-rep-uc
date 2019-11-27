@@ -176,8 +176,8 @@ class Results:
 
         return df_b, df_r
 
-    def get_year_emissions(self, case):
-        """Get total emissions in a given year"""
+    def get_day_emissions(self, case):
+        """Get total emissions for each day"""
 
         files = [f for f in os.listdir(os.path.join(self.root_output_dir, case)) if 'interval' in f]
 
@@ -199,6 +199,59 @@ class Results:
 
         return df
 
+    def get_generator_energy(self, case):
+        """Compute weekly energy output by generators eligible under scheme"""
+
+        files = [f for f in os.listdir(os.path.join(self.root_output_dir, case)) if 'interval' in f]
+
+        # Container for DataFrames
+        dfs = []
+
+        for f in files:
+            # Get year, week, and day from filename
+            year, week, day = int(f.split('_')[1]), int(f.split('_')[2]), int(f.split('_')[3].replace('.pickle', ''))
+
+            # Load results
+            r = self.load_interval_results('1_calibration_intervals', year, week, day)
+
+            # Extract energy results
+            e = pd.Series(r['e']).rename_axis(['generator', 'interval']).rename('energy')
+
+            # Filter so only timestamps for a single day are extracted
+            energy = e.loc[e.index.get_level_values(1).isin(range(1, 25))]
+
+            # Convert to DataFrame and add year and week indices. Set index to generator, year, week, interval
+            df_e = energy.reset_index()
+            df_e['year'] = year
+            df_e['week'] = week
+            df_e['day'] = day
+            df_e = df_e.set_index(['generator', 'year', 'week', 'day', 'interval'])
+
+            dfs.append(df_e)
+
+        # Concatenate all DataFrames
+        df_energy = pd.concat(dfs).sort_index()
+
+        return df_energy
+
+    def get_week_emissions_intensity(self, case, generators):
+        """Get emissions intensity of regulated generators"""
+
+        # Generator energy output in each interval
+        df_e = self.get_generator_energy(case)
+
+        # Total energy output from regulated generators
+        weekly_energy = df_e.loc[df_e.index.get_level_values(0).isin(generators)].groupby(['year', 'week']).sum()
+
+        # Emissions each day
+        daily_emissions = self.get_day_emissions(case)
+        weekly_emissions = daily_emissions.groupby(['year', 'week']).sum()
+
+        # Weekly emissions intensity
+        emissions_intensity = weekly_emissions / weekly_energy['energy']
+
+        return emissions_intensity
+
 
 if __name__ == '__main__':
     # Object used to process model data
@@ -207,22 +260,3 @@ if __name__ == '__main__':
     case_name = 'bau'
 
     params = process.get_case_parameters(case_name)
-    # week_nem_price, week_zone_price = process.get_week_prices(case_name)
-    r = process.load_mpc_results('revenue_target', 2018, 2)
-    i = process.load_interval_results(case_name, 2018, 2, 1)
-
-    bau_emissions = process.get_year_emissions('bau')
-    tax_emissions = process.get_year_emissions('carbon_tax')
-
-    bas, rev = process.get_baselines_and_revenue('emissions_intensity_shock')
-
-    fig, ax = plt.subplots()
-    bau_emissions.cumsum().plot(ax=ax, color='blue')
-    tax_emissions.cumsum().plot(ax=ax, color='red')
-    plt.show()
-
-    # bas, rev = process.get_baselines_and_revenue(case_name)
-    # bas.plot()
-    # plt.show()
-    # rev.plot()
-    # plt.show()
