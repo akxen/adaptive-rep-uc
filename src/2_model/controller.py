@@ -19,16 +19,12 @@ if __name__ == '__main__':
 
     # Run all cases
     # for name, parameters in case_parameters.items():
-    for name in ['bau',
-                 'renewables_eligibility',
-                 'revenue_floor',
-                 'revenue_target_1_ci',
+    for name in ['revenue_target_1_ci',
                  'revenue_target_3_ci',
                  'anticipated_emissions_intensity_shock_1_ci',
                  'anticipated_emissions_intensity_shock_3_ci',
                  'unanticipated_emissions_intensity_shock_1_ci',
                  'unanticipated_emissions_intensity_shock_3_ci',
-                 'multi_scenario_forecast',
                  'persistence_forecast'
                  ]:
         parameters = case_parameters[name]

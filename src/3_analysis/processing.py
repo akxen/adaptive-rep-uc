@@ -252,6 +252,35 @@ class Results:
 
         return emissions_intensity
 
+    def get_week_system_emissions_intensity(self, case):
+        """Get average emissions intensity for whole system (emissions / demand)"""
+
+        # Interval demand
+        df_d = self.get_interval_demand()
+
+        # Total demand each week
+        week_demand = (df_d.loc[df_d.index.get_level_values(3).isin(range(1, 25)), :]
+                           .groupby(['year', 'week']).sum().sum(axis=1))
+
+        # Emissions each day and week
+        daily_emissions = self.get_day_emissions(case)
+        week_emissions = daily_emissions.groupby(['year', 'week']).sum()
+
+        # Average system emissions intensity each week
+        emissions_intensity = week_emissions.div(week_demand).dropna()
+
+        return emissions_intensity
+
+    def get_week_cumulative_emissions(self, case):
+        """Get cumulative emissions over the course of the model horizon for a given case"""
+
+        # Emissions each day and week
+        daily_emissions = self.get_day_emissions(case)
+        week_emissions = daily_emissions.groupby(['year', 'week']).sum()
+
+        return week_emissions.cumsum()
+
+
 
 if __name__ == '__main__':
     # Object used to process model data
@@ -260,3 +289,5 @@ if __name__ == '__main__':
     case_name = 'bau'
 
     params = process.get_case_parameters(case_name)
+    em = process.get_week_system_emissions_intensity(case_name)
+
