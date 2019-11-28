@@ -785,8 +785,8 @@ if __name__ == '__main__':
     # plots.plot_revenue_targeting()
 
     # Revenue floor plot
-    # r = plots.get_revenue_floor_plot_data()
-    # plots.plot_revenue_floor()
+    r = plots.get_revenue_floor_plot_data()
+    plots.plot_revenue_floor()
 
     # Scheme eligibility
     # plots.get_scheme_eligibility_plot_data(use_cache=False)
@@ -796,4 +796,4 @@ if __name__ == '__main__':
     # plots.plot_persistence_based_forecast()
 
     # Multi-scenario generation input plot
-    plots.plot_multi_scenario_input()
+    # plots.plot_multi_scenario_input()

@@ -467,7 +467,7 @@ class ModelCases:
                             'overlap_intervals': 17,
                             'calibration_intervals': 3,
                             'scenarios': 1,
-                            'baseline_start': 1,
+                            'baseline_start': 0.94,
                             'case_name': 'renewables_eligibility',
                             'output_dir': os.path.join(output_dir, 'renewables_eligibility'),
                             'revenue_floor': None,
@@ -486,6 +486,19 @@ class ModelCases:
                             'output_dir': os.path.join(output_dir, 'revenue_floor'),
                             'revenue_floor': -1e6,
                             'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
+                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
+                            'baseline_update_required': True},
+
+                       'revenue_buffer':
+                           {'years': years, 'weeks': weeks, 'days': days,
+                            'overlap_intervals': 17,
+                            'calibration_intervals': 3,
+                            'scenarios': 1,
+                            'baseline_start': 1,
+                            'case_name': 'revenue_buffer',
+                            'output_dir': os.path.join(output_dir, 'revenue_buffer'),
+                            'revenue_floor': None,
+                            'revenue_target': {y: {w: float(3e6) for w in weeks} for y in years},
                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
                             'baseline_update_required': True},
                        }
