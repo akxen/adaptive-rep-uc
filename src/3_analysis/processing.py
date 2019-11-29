@@ -212,7 +212,7 @@ class Results:
             year, week, day = int(f.split('_')[1]), int(f.split('_')[2]), int(f.split('_')[3].replace('.pickle', ''))
 
             # Load results
-            r = self.load_interval_results('1_calibration_intervals', year, week, day)
+            r = self.load_interval_results(case, year, week, day)
 
             # Extract energy results
             e = pd.Series(r['e']).rename_axis(['generator', 'interval']).rename('energy')

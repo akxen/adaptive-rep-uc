@@ -1,6 +1,10 @@
 """Plot model results"""
 
 import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), os.path.pardir, '2_model', 'base'))
+
 import pickle
 
 import MySQLdb
@@ -13,6 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from processing import Results
+from forecast import MonteCarloForecast
 
 
 class PlotUtils:
@@ -225,7 +230,7 @@ class CreatePlots:
         # Container for results
         results = {}
 
-        for c in ['1_calibration_intervals', '4_calibration_intervals', 'revenue_target']:
+        for c in ['1_calibration_intervals', '3_calibration_intervals', 'revenue_target_1_ci', 'revenue_target_3_ci']:
             # Get baselines and cumulative scheme revenue
             baselines, revenue = self.results.get_baselines_and_revenue(c)
 
@@ -259,58 +264,56 @@ class CreatePlots:
             print(e)
             r = self.get_revenue_targeting_plot_data(use_cache=False, save=True)
 
+        # Revenue neutral target with 1 and 3 calibration intervals respectively
+        n_s = r['1_calibration_intervals']
+        n_l = r['3_calibration_intervals']
+
+        # Positive revenue target with 1 and 3 calibration intervals respectively
+        p_s = r['revenue_target_1_ci']
+        p_l = r['revenue_target_3_ci']
+
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex=True)
 
-        # Plot revenue neutral baselines with different calibration intervals
+        # Line styles
         short_ci_style = {'color': '#225de6', 'alpha': 0.7, 'linewidth': 1}
-        ax1.plot(range(1, len(r['1_calibration_intervals']['baselines'].values) + 1),
-                 r['1_calibration_intervals']['baselines'].values, **short_ci_style)
-
         long_ci_style = {'color': 'r', 'alpha': 0.7, 'linewidth': 1}
-        ax1.plot(range(1, len(r['4_calibration_intervals']['baselines'].values) + 1),
-                 r['4_calibration_intervals']['baselines'].values, **long_ci_style)
-
         emissions_intensity_style = {'color': 'g', 'alpha': 0.7, 'linewidth': 0.7, 'linestyle': '--'}
-        ax1.plot(range(1, len(r['4_calibration_intervals']['emissions_intensity'].values) + 1),
-                 r['4_calibration_intervals']['emissions_intensity'].values, **emissions_intensity_style)
-
-        # Plot price targeting baselines
-        ax2.plot(range(1, len(r['revenue_target']['baselines'].values) + 1),
-                 r['revenue_target']['baselines'].values, **long_ci_style)
-
-        ax2.plot(range(1, len(r['4_calibration_intervals']['emissions_intensity'].values) + 1),
-                 r['4_calibration_intervals']['emissions_intensity'].values, **emissions_intensity_style)
-
-        # Plot revenue neutral target paths with different calibration intervals
-        ax3.plot(range(1, len(r['1_calibration_intervals']['revenue'].values) + 1),
-                 r['1_calibration_intervals']['revenue'].values, **short_ci_style)
-
-        ax3.plot(range(1, len(r['4_calibration_intervals']['revenue'].values) + 1),
-                 r['4_calibration_intervals']['revenue'].values, **long_ci_style)
-
-        # Plot baseline when positive revenue target is implemented
-        ax4.plot(range(1, len(r['revenue_target']['revenue'].values) + 1),
-                 r['revenue_target']['revenue'].values, **long_ci_style)
-
-        # Plot revenue targets
         target_style = {'color': 'k', 'alpha': 0.7, 'linewidth': 0.7, 'linestyle': '--'}
 
-        ax3.plot(range(1, 53), [r['1_calibration_intervals']['parameters']['revenue_target'][2018][i] for i in range(1, 53)],
-                 **target_style)
+        # Plot revenue neutral baselines with different calibration intervals
+        ax1.plot(range(1, len(n_s['baselines'].values) + 1), n_s['baselines'].values, **short_ci_style)
+        ax1.plot(range(1, len(n_l['baselines'].values) + 1), n_l['baselines'].values, **long_ci_style)
+        ax1.plot(range(1, len(n_l['emissions_intensity'].values) + 1), n_l['emissions_intensity'].values,
+                 **emissions_intensity_style)
 
-        ax4.plot(range(1, 53), [r['revenue_target']['parameters']['revenue_target'][2018][i] for i in range(1, 53)],
-                 **target_style)
+        # Plot price targeting baselines
+        ax2.plot(range(1, len(p_s['baselines'].values) + 1), p_s['baselines'].values, **short_ci_style)
+        ax2.plot(range(1, len(p_l['baselines'].values) + 1), p_l['baselines'].values, **long_ci_style)
+        ax2.plot(range(1, len(p_l['emissions_intensity'].values) + 1), p_l['emissions_intensity'].values,
+                 **emissions_intensity_style)
+
+        # Plot revenue neutral target paths with different calibration intervals
+        ax3.plot(range(1, len(n_s['revenue'].values) + 1), n_s['revenue'].values, **short_ci_style)
+        ax3.plot(range(1, len(n_l['revenue'].values) + 1), n_l['revenue'].values, **long_ci_style)
+
+        # Plot baseline when positive revenue target is implemented
+        ax4.plot(range(1, len(p_s['revenue'].values) + 1), p_s['revenue'].values, **short_ci_style)
+        ax4.plot(range(1, len(p_l['revenue'].values) + 1), p_l['revenue'].values, **long_ci_style)
+
+        # Plot revenue targets
+        ax3.plot(range(1, 53), [n_s['parameters']['revenue_target'][2018][i] for i in range(1, 53)], **target_style)
+        ax4.plot(range(1, 53), [p_s['parameters']['revenue_target'][2018][i] for i in range(1, 53)], **target_style)
 
         # Set axis limit
         ax1.set_ylim([0.96, 1.03])
         ax2.set_ylim([0.96, 1.03])
 
-        ax3.set_ylim([-0.5e7, 1.3e7])
-        ax4.set_ylim([-0.5e7, 1.3e7])
+        ax3.set_ylim([-0.5e7, 33e6])
+        ax4.set_ylim([-0.5e7, 33e6])
 
         # Shade region
         ax2.fill_between([10, 20], [0, 0], [2, 2], color='k', alpha=0.2, linewidth=0)
-        ax4.fill_between([10, 20], [-1e7, -1e7], [2e7, 2e7], color='k', alpha=0.2, linewidth=0)
+        ax4.fill_between([10, 20], [-1e7, -1e7], [3.5e7, 3.5e7], color='k', alpha=0.2, linewidth=0)
 
         # Change tick label size
         for ax in [ax1, ax2, ax3, ax4]:
@@ -329,12 +332,12 @@ class CreatePlots:
         ax1.xaxis.set_minor_locator(plt.MultipleLocator(5))
 
         for ax in [ax3, ax4]:
-            ax.yaxis.set_major_locator(plt.MultipleLocator(0.5e7))
-            ax.yaxis.set_minor_locator(plt.MultipleLocator(0.25e7))
+            ax.yaxis.set_major_locator(plt.MultipleLocator(1e7))
+            ax.yaxis.set_minor_locator(plt.MultipleLocator(0.5e7))
 
         # Add legend
         lns = ax3.lines + [ax1.lines[-1], ax4.lines[-1]]
-        labs = ['1 interval', '2  intervals', 'revenue target', 'avg. emissions intensity']
+        labs = ['1 interval', '3 intervals', 'revenue target', 'avg. emissions intensity']
         ax3.legend(lns, labs, frameon=False, fontsize=5, loc=2, bbox_to_anchor=(-0.008, 1))
 
         # Plot titles
@@ -743,33 +746,199 @@ class CreatePlots:
 
         plt.show()
 
-    def plot_multi_scenario_input(self):
-        """Plot showing how multiple scenarios are constructed"""
+    def get_multi_scenario_input_plot_data(self, use_cache=False, save=True):
+        """Get data used to show construction procedure for multi-scenario generation procedure"""
 
-        # Generator energy for each week of 2018
+        filename = 'multi_scenario_input_plot_data.pickle'
+
+        # Load cached file if specified and return (faster loading)
+        if use_cache:
+            results = self.load_cache(self.output_dir, filename)
+            return results
+
+        # Multi-scenario generation input plot
+        energy = self.results.get_generator_energy('multi_scenario_forecast')
+
+        # Arrange DataFrame so format is suitable for forecast generation
+        df_e = energy.reset_index().pivot_table(index=['year', 'week', 'interval'], columns='generator',
+                                                values='energy')
+
+        # Group-by year and week
+        df_e_wk = df_e.groupby(['year', 'week']).sum()
+
+        # Filter so only have 2017 values
+        df_e_wk_f = df_e_wk.loc[df_e_wk.index.get_level_values(0) == 2017, :]
+
+        # Object used to construct forecasts
+        forecast = MonteCarloForecast()
+
+        # Generate forecasts
+        duid = 'ER02'
+        scenario_energy, scenario_weights, energy_paths = forecast.get_duid_scenarios(df_e_wk_f, duid, n_intervals=3,
+                                                                                      n_random_paths=500, n_clusters=5)
+
+        # Combine results into single dictionary
+        results = {'observed_energy': df_e_wk_f, 'scenario_energy': scenario_energy, 'energy_paths': energy_paths,
+                   'duid': duid}
+
+        # Save results
+        if save:
+            self.save(results, self.output_dir, filename)
+
+        return results
+
+    def plot_multi_scenario_input(self):
+        """Plot showing underlying series and histogram of first difference of underlying"""
+
+        # Get data
         try:
-            r = self.get_persistence_based_forecast_plot_data(use_cache=True)
+            r = self.get_multi_scenario_input_plot_data(use_cache=True)
         except Exception as e:
             print(e)
-            r = self.get_persistence_based_forecast_plot_data()
+            r = self.get_multi_scenario_input_plot_data(use_cache=False, save=True)
 
-        station = 'YALLOURN'
-        energy = r[station].iloc[:52].values
+        # Create plots
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharey=True)
 
-        energy_mean = np.mean(energy)
-        energy_std = np.std(energy)
+        # Generator for which to construct example
+        duid = r['duid']
 
-        energy_diff = r[station].iloc[:52].diff(1)
+        # Plot observed energy
+        x_obs = range(1, r['observed_energy'].shape[0] + 1)
+        ax1.plot(x_obs, r['observed_energy'][duid].values, color='#029e4d', linewidth=0.8)
 
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+        # Plot observed data
+        ax2.plot(range(48, 53), r['observed_energy'].iloc[-5:][duid].values, color='#029e4d', linewidth=0.8)
 
-        ax1.plot(range(1, 53), energy, color='r')
-        ax2.hist(energy_diff.values, bins=15)
+        # Plot random paths
+        for p in r['energy_paths']:
+            x_forecast = range(r['observed_energy'].shape[0], r['observed_energy'].shape[0] + 3 + 1)
+            ax2.plot(x_forecast, p, color='b', alpha=0.02, linewidth=0.8)
+
+        # Plot centroids
+        centroids = [[r['observed_energy'].iloc[-1][duid]] + [r['scenario_energy'][(duid, s, t)] for t in range(1, 4)]
+                     for s in range(1, 6)]
+
+        for c in centroids:
+            x_forecast = range(r['observed_energy'].shape[0], r['observed_energy'].shape[0] + 3 + 1)
+            ax2.plot(x_forecast, c, color='#e60202', alpha=0.9, linewidth=0.8)
+
+        # Axes labels
+        ax1.set_xlabel('Week', fontsize=7)
+        ax2.set_xlabel('Week', fontsize=7)
+        ax1.set_ylabel('Energy (MWh)', fontsize=7)
+
+        # Change tick label size
+        for ax in [ax1, ax2]:
+            ax.tick_params(labelsize=7)
+
+        # Format major and minor ticks
+        ax1.yaxis.set_major_locator(plt.MultipleLocator(2000))
+        ax1.yaxis.set_minor_locator(plt.MultipleLocator(1000))
+
+        ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
+        ax1.xaxis.set_minor_locator(plt.MultipleLocator(5))
+
+        ax2.xaxis.set_major_locator(plt.MultipleLocator(2))
+        ax2.xaxis.set_minor_locator(plt.MultipleLocator(1))
+
+        # Add text to denote sub-figures
+        ax1.text(2, 7300, 'a', fontsize=9, weight='bold')
+        ax2.text(48.1, 7300, 'b', fontsize=9, weight='bold')
+
+        # Add text to denote DUID under investigation
+        ax2.text(53, 14750, duid, fontsize=7)
+
+        # Set figure size
+        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(5)))
+
+        # Adjust subplots
+        fig.subplots_adjust(left=0.20, bottom=0.19, top=0.99, right=0.99)
+
+        # Save figure
+        fig.savefig(os.path.join(self.output_dir, 'multi_scenario_input.png'))
+        fig.savefig(os.path.join(self.output_dir, 'multi_scenario_input.pdf'))
 
         plt.show()
 
+    def get_emissions_intensity_shock_plot_data(self, use_cache=False, save=True):
+        """Get data showing baseline and revenue response following an emissions intensity shock to the system"""
 
+        filename = 'emissions_intensity_shock_plot_data.pickle'
 
+        # Load cached file if specified and return (faster loading)
+        if use_cache:
+            results = self.load_cache(self.output_dir, filename)
+            return results
+
+        # Container for results
+        results = {}
+
+        for c in ['anticipated_emissions_intensity_shock_1_ci', 'anticipated_emissions_intensity_shock_3_ci',
+                  'unanticipated_emissions_intensity_shock_1_ci', 'unanticipated_emissions_intensity_shock_3_ci']:
+
+            # Generators under scheme's remit
+            generators = self.results.data.get_thermal_unit_duids()
+
+            # Extract baselines, scheme revenue, and emissions intensity of regulated generators
+            baselines, revenue = self.results.get_baselines_and_revenue(c)
+            emissions_intensity = self.results.get_week_emissions_intensity(c, generators)
+
+            # Place results in dictionary
+            results[c] = {'baselines': baselines, 'revenue': revenue, 'emissions_intensity': emissions_intensity}
+
+        # Save results
+        if save:
+            self.save(results, self.output_dir, filename)
+
+        return results
+
+    def plot_emissions_intensity_shock(self):
+        """Plot response of baseline and scheme revenue to a persistent change to generator emissions intensities"""
+
+        # Extracting into easier to handle variable names
+        as_s, as_l = r['anticipated_emissions_intensity_shock_1_ci'], r['anticipated_emissions_intensity_shock_3_ci']
+        us_s, us_l = r['unanticipated_emissions_intensity_shock_1_ci'], r[
+            'unanticipated_emissions_intensity_shock_3_ci']
+
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
+
+        long_style = {'color': 'r', 'linewidth': 0.7}
+        short_style = {'color': 'b', 'linewidth': 0.7}
+        emissions_style = {'color': 'orange', 'linewidth': 0.7, 'linestyle': '--'}
+
+        # Plot anticipated shock
+        x = range(1, 53)
+        ax1.plot(x, as_s['baselines'], **short_style)
+        ax1.plot(x, as_l['baselines'], **long_style)
+
+        plt.show()
+
+    def get_multi_scenario_plot_data(self, use_cache=False, save=True):
+        """Get data comparing persistence-based forecast with multi-scenario forecasting strategy"""
+
+        filename = 'multi_scenario_plot_data.pickle'
+
+        # Load cached file if specified and return (faster loading)
+        if use_cache:
+            results = self.load_cache(self.output_dir, filename)
+            return results
+
+        # Container for results
+        results = {}
+
+        for c in ['persistence_forecast', 'multi_scenario_forecast']:
+            # Extract baselines and scheme revenue
+            baselines, revenue = plots.results.get_baselines_and_revenue(c)
+
+            # Append to results container
+            results[c] = {'baselines': baselines, 'revenue': revenue}
+
+        # Save results
+        if save:
+            self.save(results, self.output_dir, filename)
+
+        return results
 
 if __name__ == '__main__':
     output_directory = os.path.join(os.path.dirname(__file__), 'output', 'figures')
@@ -780,13 +949,13 @@ if __name__ == '__main__':
     # Plot baseline and revenue for different calibration interval durations
     # plots.plot_calibration_interval_comparison()
 
-    # Price targeting plot
+    # Revenue targeting plot
     # r = plots.get_revenue_targeting_plot_data(use_cache=True)
     # plots.plot_revenue_targeting()
 
     # Revenue floor plot
-    r = plots.get_revenue_floor_plot_data()
-    plots.plot_revenue_floor()
+    # r = plots.get_revenue_floor_plot_data()
+    # plots.plot_revenue_floor()
 
     # Scheme eligibility
     # plots.get_scheme_eligibility_plot_data(use_cache=False)
@@ -795,5 +964,23 @@ if __name__ == '__main__':
     # Persistence-based forecast
     # plots.plot_persistence_based_forecast()
 
-    # Multi-scenario generation input plot
+    # Multi-scenario input plot
     # plots.plot_multi_scenario_input()
+
+    # Emissions intensity shock
+    # r = plots.get_emissions_intensity_shock_plot_data(use_cache=True)
+
+    # Multi-scenario results
+    r = plots.get_multi_scenario_plot_data(use_cache=True)
+
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+
+    # Plot baselines
+    ax1.plot(r['persistence_forecast']['baselines'].values, color='r')
+    ax1.plot(r['multi_scenario_forecast']['baselines'].values, color='b')
+
+    ax2.plot(r['persistence_forecast']['revenue'].values, color='r')
+    ax2.plot(r['multi_scenario_forecast']['revenue'].values, color='b')
+    # ax2.set_yscale('log')
+    plt.show()
+

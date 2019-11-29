@@ -196,7 +196,7 @@ class ModelCases:
                                 eligible_generators=m_mpc.G)
 
                         # Update emissions intensities if there is an anticipated emissions intensity shock
-                        if ((params['case_name'] == 'anticipated_emissions_intensity_shock')
+                        if ((params['case_name'].startswith('anticipated_emissions_intensity_shock'))
                                 and (next_y == params['emissions_shock_year'])
                                 and (next_w > params['emissions_shock_week'] - params['calibration_intervals'])):
 
@@ -254,7 +254,7 @@ class ModelCases:
                             m_uc.BASELINE[h] = float(mpc_results['baseline_trajectory'][1])
 
                     # Apply unanticipated emissions intensity shock if required
-                    if ((params['case_name'] == 'unanticipated_emissions_intensity_shock')
+                    if ((params['case_name'].startswith('unanticipated_emissions_intensity_shock'))
                             and (y == params['emissions_shock_year']) and (w == params['emissions_shock_week'])
                             and (d == 1)):
                         # Applying new emissions intensities for coming calibration interval (misaligned with forecast)
