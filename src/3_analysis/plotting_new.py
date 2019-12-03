@@ -421,10 +421,63 @@ class CreatePlots:
 
         fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex=True)
 
+        # Change tick label size
+        for ax in [ax1, ax2]:
+            ax.tick_params(labelsize=7)
+
+        # Plot revenue and baseline
         x = range(1, len(r['revenue_floor']['revenue'].values) + 1)
-        ax1.plot(x, r['revenue_floor']['revenue'].values, color='r', alpha=0.8)
-        ax1.plot(x, r['3_calibration_intervals']['revenue'].values, color='b', alpha=0.8)
+
+        # Styles
+        with_floor = {'color': '#5887ed', 'linewidth': 0.8, 'alpha': 0.8}
+        without_floor = {'color': '#db141e', 'linewidth': 0.8, 'alpha': 0.8}
+
+        ax1.plot(x, r['revenue_floor']['baselines'].values, **with_floor)
+        ax1.plot(x, r['3_calibration_intervals']['baselines'].values, **without_floor)
+
+        ax2.plot(x, r['revenue_floor']['revenue'].values, **with_floor)
+        ax2.plot(x, r['3_calibration_intervals']['revenue'].values, **without_floor)
+
+        # Plot revenue floor line
+        ax2.plot([0, 52], [0, 0], linewidth=0.8, linestyle='--', alpha=0.8, color='k')
+
+        # Change size of scientific notation
+        ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax2.yaxis.get_offset_text().set_size(7)
+        ax2.yaxis.get_offset_text().set(ha='right', va='center')
+
+        # Set labels for axes
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.1)
+        ax1.set_xlabel('Week', fontsize=7)
+
+        ax2.set_ylabel('Revenue ($)', fontsize=7, labelpad=-0.1)
+        ax2.set_xlabel('Week', fontsize=7)
+
+        # Set major and minor ticks
+        ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
+        ax1.xaxis.set_minor_locator(plt.MultipleLocator(5))
+
+        ax1.yaxis.set_major_locator(plt.MultipleLocator(0.01))
+        ax1.yaxis.set_minor_locator(plt.MultipleLocator(0.005))
+
+        ax2.yaxis.set_major_locator(plt.MultipleLocator(1e6))
+        ax2.yaxis.set_minor_locator(plt.MultipleLocator(0.5e6))
+
+        # Add legend
+        ax1.legend(['with floor', 'without floor'], fontsize=5, loc='lower right', frameon=False)
+
+        # Set figure size
+        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(4.5)))
+
+        # Adjust subplots
+        fig.subplots_adjust(left=0.15, top=0.92, bottom=0.21, right=0.98, hspace=0.3, wspace=0.43)
+
+        # Save figure
+        fig.savefig(os.path.join(self.output_dir, 'revenue_floor.png'))
+        fig.savefig(os.path.join(self.output_dir, 'revenue_floor.pdf'))
+
         plt.show()
+
 
     def get_scheme_eligibility_plot_data(self, use_cache=False, save=True):
         """Compare scenarios when renewables are eligible and ineligible to receive credits / penalties"""
@@ -505,64 +558,63 @@ class CreatePlots:
 
         ax2.plot(x, r['3_calibration_intervals']['nem_price'].values, **ineligible_style)
         ax2.plot(x, r['renewables_eligibility']['nem_price'].values, **eligible_style)
-        # ax2.plot(x, r['bau']['nem_price'].values, **bau_style)
 
-        ax3.plot(x, r['3_calibration_intervals']['revenue'].values, **ineligible_style)
-        ax3.plot(x, r['renewables_eligibility']['revenue'].values, **eligible_style)
+        ax4.plot(x, r['3_calibration_intervals']['revenue'].values, **ineligible_style)
+        ax4.plot(x, r['renewables_eligibility']['revenue'].values, **eligible_style)
 
-        ax4.plot(x, r['3_calibration_intervals']['system_emissions_intensity'].values, **ineligible_style)
-        ax4.plot(x, r['renewables_eligibility']['system_emissions_intensity'].values, **eligible_style)
-        ax4.plot(x, r['bau']['system_emissions_intensity'].values, **bau_style)
+        ax3.plot(x, r['3_calibration_intervals']['system_emissions_intensity'].values, **ineligible_style)
+        ax3.plot(x, r['renewables_eligibility']['system_emissions_intensity'].values, **eligible_style)
+        ax3.plot(x, r['bau']['system_emissions_intensity'].values, **bau_style)
 
         # Change size of scientific notation
-        ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
-        ax3.yaxis.get_offset_text().set_size(7)
-        ax3.yaxis.get_offset_text().set(ha='right', va='center')
+        ax4.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax4.yaxis.get_offset_text().set_size(7)
+        ax4.yaxis.get_offset_text().set(ha='right', va='center')
 
         # Change tick label size
-        for ax in [ax1, ax2, ax3, ax4]:
+        for ax in [ax1, ax2, ax4, ax3]:
             ax.tick_params(labelsize=7)
 
         # Set major and minor ticks
-        ax1.yaxis.set_major_locator(plt.MultipleLocator(0.02))
-        ax1.yaxis.set_minor_locator(plt.MultipleLocator(0.01))
+        ax1.yaxis.set_major_locator(plt.MultipleLocator(0.04))
+        ax1.yaxis.set_minor_locator(plt.MultipleLocator(0.02))
         ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
         ax1.xaxis.set_minor_locator(plt.MultipleLocator(5))
 
-        ax2.yaxis.set_major_locator(plt.MultipleLocator(5))
-        ax2.yaxis.set_minor_locator(plt.MultipleLocator(2.5))
+        ax2.yaxis.set_major_locator(plt.MultipleLocator(10))
+        ax2.yaxis.set_minor_locator(plt.MultipleLocator(5))
 
-        ax3.yaxis.set_major_locator(plt.MultipleLocator(2.5e6))
-        ax3.yaxis.set_minor_locator(plt.MultipleLocator(2.5e6/2))
+        ax4.yaxis.set_major_locator(plt.MultipleLocator(2.5e6))
+        ax4.yaxis.set_minor_locator(plt.MultipleLocator(2.5e6/2))
 
-        ax4.yaxis.set_major_locator(plt.MultipleLocator(0.04))
-        ax4.yaxis.set_minor_locator(plt.MultipleLocator(0.02))
+        ax3.yaxis.set_major_locator(plt.MultipleLocator(0.04))
+        ax3.yaxis.set_minor_locator(plt.MultipleLocator(0.02))
 
         # Include axes labels
-        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.1)
-        ax2.set_ylabel('Average price ($/MWh)', fontsize=7, labelpad=-0.1)
-        ax3.set_ylabel('Revenue ($)', fontsize=7, labelpad=-0.1)
-        ax4.set_ylabel('Emissions intensity (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.1)
+        ax1.set_ylabel('Baseline \n (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.1)
+        ax2.set_ylabel('Price ($/MWh)', fontsize=7, labelpad=-0.1)
+        ax4.set_ylabel('Revenue ($)', fontsize=7, labelpad=-0.1)
+        ax3.set_ylabel('Emissions \n (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.1)
 
-        ax3.set_xlabel('Week', fontsize=7)
         ax4.set_xlabel('Week', fontsize=7)
+        ax3.set_xlabel('Week', fontsize=7)
 
         # Add text to denote sub-figures
         ax1.text(1, 0.91, 'a', fontsize=9, weight='bold')
         ax2.text(1, 23.5, 'b', fontsize=9, weight='bold')
-        ax3.text(1, -5e6, 'c', fontsize=9, weight='bold')
-        ax4.text(1, 0.81, 'd', fontsize=9, weight='bold')
+        ax4.text(1, -5e6, 'c', fontsize=9, weight='bold')
+        ax3.text(1, 0.81, 'd', fontsize=9, weight='bold')
 
         # Add legend
-        lns = ax4.lines
+        lns = ax3.lines
         labs = ['ineligible', 'eligible', 'BAU']
-        ax3.legend(lns, labs, frameon=False, fontsize=6, loc='lower right')
+        ax2.legend(lns, labs, frameon=False, fontsize=6, loc='upper right', labelspacing=0.01, bbox_to_anchor=[1, 1.07])
 
         # Set figure size
-        fig.set_size_inches((self.cm_to_in(16.5), self.cm_to_in(9)))
+        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(6)))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.08, top=0.99, right=0.99, wspace=0.23)
+        fig.subplots_adjust(left=0.2, top=0.99, bottom=0.15, right=0.99, wspace=0.49)
 
         # Save figures
         fig.savefig(os.path.join(self.output_dir, 'renewables_eligibility.png'))
@@ -570,10 +622,10 @@ class CreatePlots:
 
         plt.show()
 
-    def get_persistence_based_forecast_plot_data(self, use_cache=False, save=True):
+    def get_historic_energy_output_data(self, use_cache=False, save=True):
         """Get data for a persistence based forecast plot"""
 
-        filename = 'persistence_based_forecast_plot_data.pickle'
+        filename = 'historic_energy_output_data.pickle'
 
         # Load cached file if specified and return (faster loading)
         if use_cache:
@@ -634,24 +686,28 @@ class CreatePlots:
         energy = parse_data(dispatch_data)
 
         # Save data
-        with open(os.path.join(self.output_dir, filename), 'wb') as f:
-            pickle.dump(energy, f)
+        if save:
+            with open(os.path.join(self.output_dir, filename), 'wb') as f:
+                pickle.dump(energy, f)
 
         return energy
 
-    def plot_persistence_based_forecast(self):
+    def plot_forecast_comparison(self):
         """Plot persistence-based forecasting methodology justification and example"""
 
         # Persistence-based forecast
-        r = self.get_persistence_based_forecast_plot_data(use_cache=True)
+        r = self.get_historic_energy_output_data(use_cache=True)
 
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
+        fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2)
 
         # Colours for each generator
         colors = plt.cm.nipy_spectral(np.linspace(0, 1, len(r.columns)))
 
+        # Compute rolling mean
+        r_mean = r.rolling(window=1000, min_periods=1).mean()
+
         # Plotting energy output in the current week with lagged output
-        for lag, ax in [(1, ax1), (2, ax2), (4, ax3)]:
+        for lag, ax in [(-1, ax1), (-3, ax3), (-6, ax5)]:
 
             # Scatter plot for each station
             for i, duid in enumerate(r.columns):
@@ -668,81 +724,70 @@ class CreatePlots:
             # Add line with slope 1
             ax.plot([100, 2e6], [100, 2e6], color='k', linestyle='--', alpha=0.7, linewidth=0.7)
 
-        # Plot example persistence-based forecast
-        station = 'YALLOURN'
-        start_obs = 12
-        forecast_intervals = 4
-        ax4.plot(range(1, start_obs + 1), r[station].iloc[:start_obs].values, linewidth=0.8, color='b')
-        ax4.plot(range(start_obs, start_obs + 1 + forecast_intervals),
-                 r[station].iloc[start_obs - 1:start_obs + forecast_intervals].values,
-                 color='r', linewidth=0.7, linestyle='--')
+        # Plotting energy output in the current week with lagged output
+        for lag, ax in [(-1, ax2), (-3, ax4), (-6, ax6)]:
 
-        # Plot forecast value
-        ax4.plot(range(start_obs, start_obs + 1 + forecast_intervals),
-                 [r[station].iloc[start_obs - 1]] * (forecast_intervals + 1),
-                 color='k', linewidth=0.7, linestyle='--')
+            # Scatter plot for each station
+            for i, duid in enumerate(r.columns):
+                ax.scatter(r_mean[duid].values, r[duid].shift(lag).values, alpha=0.2, s=1, color=colors[i])
 
-        # Fill over forecast horizon
-        ax4.fill_between([12, 17], [0, 0], [8e5, 8e5], color='k', alpha=0.1, linewidth=0)
+            # Use log-log axes
+            ax.set_yscale('log')
+            ax.set_xscale('log')
+
+            # Set axes limits
+            ax.set_ylim([100, 2e6])
+            ax.set_xlim([100, 2e6])
+
+            # Add line with slope 1
+            ax.plot([100, 2e6], [100, 2e6], color='k', linestyle='--', alpha=0.7, linewidth=0.7)
 
         # Axes labels
-        ax1.set_ylabel('Energy -1 week (MWh)', fontsize=6, labelpad=-0.1)
-        ax2.set_ylabel('Energy -2 weeks (MWh)', fontsize=6, labelpad=-0.1)
-        ax3.set_ylabel('Energy -4 weeks (MWh)', fontsize=6, labelpad=-0.1)
-        ax4.set_ylabel('Energy (MWh)', fontsize=6, labelpad=-0.1)
+        ax1.set_ylabel('Energy +1 week (MWh)', fontsize=6, labelpad=-0.1)
+        ax2.set_ylabel('Energy +1 week (MWh)', fontsize=6, labelpad=-0.1)
+        ax3.set_ylabel('Energy +3 week (MWh)', fontsize=6, labelpad=-0.1)
+        ax4.set_ylabel('Energy +3 week (MWh)', fontsize=6, labelpad=-0.1)
+        ax5.set_ylabel('Energy +6 weeks (MWh)', fontsize=6, labelpad=-0.1)
+        ax6.set_ylabel('Energy +6 weeks (MWh)', fontsize=6, labelpad=-0.1)
 
-        ax1.set_xlabel('Energy (MWh)', fontsize=6, labelpad=-0.1)
-        ax2.set_xlabel('Energy (MWh)', fontsize=6, labelpad=-0.1)
-        ax3.set_xlabel('Energy (MWh)', fontsize=6, labelpad=-0.1)
-        ax4.set_xlabel('Week', fontsize=6, labelpad=-0.1)
+        ax5.set_xlabel('Energy (MWh)', fontsize=6, labelpad=-0.1)
+        ax6.set_xlabel('Energy (MWh)', fontsize=6, labelpad=-0.1)
 
         # Change tick label size
-        for ax in [ax1, ax2, ax3, ax4]:
+        for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
             ax.tick_params(labelsize=7)
 
         # Set major and minor ticks
         locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.2, 0.4, 0.6, 0.8), numticks=12)
 
-        for ax in [ax1, ax2, ax3]:
+        for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
             ax.xaxis.set_minor_locator(locmin)
             ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
 
             ax.yaxis.set_minor_locator(locmin)
             ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
 
-        ax4.yaxis.set_major_locator(plt.MultipleLocator(1e5))
-        ax4.yaxis.set_minor_locator(plt.MultipleLocator(0.5e5))
-
-        ax4.xaxis.set_major_locator(plt.MultipleLocator(4))
-        ax4.xaxis.set_minor_locator(plt.MultipleLocator(2))
-
-        ax4.set_xlim([0, 16.5])
-        ax4.set_ylim([4.5e5, 7.5e5])
-
         # Add text to denote sub-figures
         ax1.text(0.5e6, 180, 'a', fontsize=9, weight='bold')
         ax2.text(0.5e6, 180, 'b', fontsize=9, weight='bold')
         ax3.text(0.5e6, 180, 'c', fontsize=9, weight='bold')
-        ax4.text(14.25, 4.65e5, 'd', fontsize=9, weight='bold')
-        ax4.text(1, 4.65e5, station, fontsize=6)
+        ax4.text(0.5e6, 180, 'd', fontsize=9, weight='bold')
+        ax5.text(0.5e6, 180, 'e', fontsize=9, weight='bold')
+        ax6.text(0.5e6, 180, 'f', fontsize=9, weight='bold')
 
-        # Add legend
-        ax4.legend(['historic', 'realised', 'forecast'], fontsize=5, loc='upper right', frameon=False)
-
-        # Change size of scientific notation
-        ax4.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
-        ax4.yaxis.get_offset_text().set_size(7)
-        ax4.yaxis.get_offset_text().set(ha='right', va='center')
+        # Add title to persistence and mean-based forecasts
+        ax1.set_title('Persistence-based', fontsize=7, pad=-0.1)
+        ax2.set_title('Mean-based', fontsize=7, pad=-0.1)
 
         # Set figure size
-        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(7.8)))
+        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(10)))
 
         # Adjust subplots
-        fig.subplots_adjust(left=0.13, top=0.98, right=0.98, hspace=0.3, wspace=0.43)
+        fig.subplots_adjust(left=0.13, top=0.97, bottom=0.09, right=0.98, hspace=0.3, wspace=0.43)
 
         # Save figure
-        fig.savefig(os.path.join(self.output_dir, 'persistence_based_forecast.png'))
-        fig.savefig(os.path.join(self.output_dir, 'persistence_based_forecast.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'forecast_comparison.png'))
+        fig.savefig(os.path.join(self.output_dir, 'forecast_comparison.pdf'))
 
         plt.show()
 
@@ -940,6 +985,180 @@ class CreatePlots:
 
         return results
 
+    def plot_calibration_interval_baseline_revenue_variability(self):
+        """Show how number of calibration intervals impacts scheme revenue and baseline variance"""
+
+        # Get data
+        r = self.get_calibration_interval_comparison_plot_data(use_cache=True)
+
+        # Calibration intervals
+        x = range(1, 7)
+
+        # Standard deviation of baselines and scheme revenue
+        baselines = [r[i]['baselines'].std() for i in range(1, 7)]
+        revenue = [r[i]['revenue'].std() for i in range(1, 7)]
+
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
+        ln1 = ax1.plot(x, baselines, color='#3482ba', linewidth=0.8, linestyle='--')
+        ax1.scatter(x, baselines, color='#3482ba', s=5, linewidth=0.8)
+
+        ln2 = ax2.plot(x, revenue, color='#ba2323', linewidth=0.8, linestyle='--')
+        ax2.scatter(x, revenue, color='#ba2323', s=5, linewidth=0.8)
+
+        # Set axes labels
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7, labelpad=-0.1)
+        ax2.set_ylabel('Revenue ($)', fontsize=7, labelpad=-0.1)
+        ax1.set_xlabel('Calibration intervals', fontsize=7)
+
+        # Change size of scientific notation
+        ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax2.yaxis.get_offset_text().set_size(7)
+        ax2.yaxis.get_offset_text().set(ha='left', va='center')
+
+        # Set major and minor ticks
+        ax1.yaxis.set_major_locator(plt.MultipleLocator(0.002))
+        ax1.yaxis.set_minor_locator(plt.MultipleLocator(0.001))
+
+        ax2.yaxis.set_major_locator(plt.MultipleLocator(0.2e6))
+        ax2.yaxis.set_minor_locator(plt.MultipleLocator(0.1e6))
+
+        # Change tick label size
+        for ax in [ax1, ax2]:
+            ax.tick_params(labelsize=7)
+
+        # Add legend
+        lns = ln1 + ln2
+        ax1.legend(lns, ['Baseline SD', 'Revenue SD'], fontsize=7, loc='upper center', frameon=False,
+                   bbox_to_anchor=[0.4, 1])
+
+        # Set figure size
+        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(5)))
+
+        # Adjust subplots
+        fig.subplots_adjust(left=0.18, top=0.94, bottom=0.19, right=0.88, hspace=0.3, wspace=0.43)
+
+        # Save figure
+        fig.savefig(os.path.join(self.output_dir, 'baseline_revenue_variability_comparison.png'))
+        fig.savefig(os.path.join(self.output_dir, 'baseline_revenue_variability_comparison.pdf'))
+
+        plt.show()
+
+    def get_carbon_tax_rep_scheme_comparison_plot_data(self, use_cache=False, save=True):
+        """Get data used to compare REP scheme with a carbon tax"""
+
+        filename = 'carbon_tax_rep_scheme_comparison_plot_data.pickle'
+
+        # Load cached file if specified and return (faster loading)
+        if use_cache:
+            results = self.load_cache(self.output_dir, filename)
+            return results
+
+        # Container for results
+        results = {}
+
+        for c in ['bau', '3_calibration_intervals']:
+            # Extract baselines, scheme revenue, and prices
+            baselines, revenue = self.results.get_baselines_and_revenue(c)
+            prices, _ = self.results.get_week_prices(c)
+
+            # Place results in dictionary
+            results[c] = {'baselines': baselines, 'revenue': revenue, 'prices': prices}
+
+        # Energy output from generators under a carbon tax
+        energy = self.results.get_generator_energy('carbon_tax')
+        df = energy.reset_index().pivot_table(index=['year', 'week', 'day', 'interval'], columns='generator',
+                                              values='energy')
+
+        # Total emissions from each generator
+        emissions = df.apply(lambda x: x * self.results.data.generators['EMISSIONS'], axis=1)
+
+        # Tax paid by each generator in each calibration interval
+        # TODO: May want to generalise extraction of permit price. OK for now because 40 $/tCO2 used in all cases.
+        tax = emissions.mul(40)
+
+        # Tax revenue collected each week
+        weekly_tax_revenue = tax.groupby(['year', 'week']).sum().sum(axis=1)
+
+        # Get prices under a carbon tax
+        prices_tax, _ = self.results.get_week_prices('carbon_tax')
+
+        # Add results to dictionary to save
+        results['carbon_tax'] = {'prices': prices_tax, 'revenue': weekly_tax_revenue}
+
+        # Save results
+        if save:
+            self.save(results, self.output_dir, filename)
+
+        return results
+
+    def carbon_tax_rep_scheme_comparison_plot(self):
+        """Compare price and revenue outcomes between a REP and carbon tax"""
+
+        # Compare REP scheme with carbon tax
+        r = self.get_carbon_tax_rep_scheme_comparison_plot_data(use_cache=True)
+
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+
+        x1 = range(1, 53)
+        ax1.plot(x1, r['bau']['prices'].values, color='#8731bd', linewidth=0.8, alpha=0.8)
+        ax1.plot(x1, r['3_calibration_intervals']['prices'].values, color='#4584f7', linewidth=0.8, alpha=0.8)
+        ax1.plot(x1, r['carbon_tax']['prices'].values, color='#c4232b', linewidth=0.8, alpha=0.8)
+
+        x2 = range(0, 53)
+        ax2.plot(x2, [0] + list(r['3_calibration_intervals']['revenue'].values), color='#4584f7', linewidth=0.8,
+                 alpha=0.8)
+        ax2.plot(x2, [0] + list(r['carbon_tax']['revenue'].cumsum().values), color='#c4232b', linewidth=0.8, alpha=0.8)
+
+        # Axes labels
+        ax1.set_ylabel('Price ($/MWh)', fontsize=6, labelpad=-0.1)
+        ax2.set_ylabel('Revenue ($)', fontsize=6, labelpad=-0.1)
+
+        ax1.set_xlabel('Week', fontsize=6, labelpad=-0.1)
+        ax2.set_xlabel('Week', fontsize=6, labelpad=-0.1)
+
+        # Change tick label size
+        for ax in [ax1, ax2]:
+            ax.tick_params(labelsize=7)
+
+        # Set major and minor ticks
+        ax1.yaxis.set_major_locator(plt.MultipleLocator(10))
+        ax1.yaxis.set_minor_locator(plt.MultipleLocator(5))
+
+        ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
+        ax1.xaxis.set_minor_locator(plt.MultipleLocator(5))
+
+        ax2.yaxis.set_major_locator(plt.MultipleLocator(1e9))
+        ax2.yaxis.set_minor_locator(plt.MultipleLocator(0.5e9))
+
+        ax2.xaxis.set_major_locator(plt.MultipleLocator(10))
+        ax2.xaxis.set_minor_locator(plt.MultipleLocator(5))
+
+        # Change size of scientific notation
+        ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax2.yaxis.get_offset_text().set_size(7)
+        ax2.yaxis.get_offset_text().set(ha='center', va='center')
+
+        # Add text to denote sub-figures
+        ax1.text(48, 32, 'a', fontsize=9, weight='bold')
+        ax2.text(48, 0.5e6, 'b', fontsize=9, weight='bold')
+
+        # Add legend
+        ax1.legend(['BAU', 'REP', 'Tax'], fontsize=5, loc='center right', frameon=False, bbox_to_anchor=[1, 0.45])
+
+        # Set figure size
+        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(4.5)))
+
+        # Adjust subplots
+        fig.subplots_adjust(left=0.11, top=0.94, bottom=0.17, right=0.98, hspace=0.3, wspace=0.3)
+
+        # Save figure
+        fig.savefig(os.path.join(self.output_dir, 'rep_vs_carbon_tax.png'))
+        fig.savefig(os.path.join(self.output_dir, 'rep_vs_carbon_tax.pdf'))
+
+        plt.show()
+
+
 if __name__ == '__main__':
     output_directory = os.path.join(os.path.dirname(__file__), 'output', 'figures')
 
@@ -954,33 +1173,29 @@ if __name__ == '__main__':
     # plots.plot_revenue_targeting()
 
     # Revenue floor plot
-    # r = plots.get_revenue_floor_plot_data()
+    # r = plots.get_revenue_floor_plot_data(use_cache=True)
     # plots.plot_revenue_floor()
 
     # Scheme eligibility
     # plots.get_scheme_eligibility_plot_data(use_cache=False)
     # plots.plot_scheme_eligibility()
 
-    # Persistence-based forecast
-    # plots.plot_persistence_based_forecast()
-
-    # Multi-scenario input plot
-    # plots.plot_multi_scenario_input()
-
     # Emissions intensity shock
-    # r = plots.get_emissions_intensity_shock_plot_data(use_cache=True)
+    r = plots.get_emissions_intensity_shock_plot_data(use_cache=True)
 
-    # Multi-scenario results
-    r = plots.get_multi_scenario_plot_data(use_cache=True)
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
 
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
-
-    # Plot baselines
-    ax1.plot(r['persistence_forecast']['baselines'].values, color='r')
-    ax1.plot(r['multi_scenario_forecast']['baselines'].values, color='b')
-
-    ax2.plot(r['persistence_forecast']['revenue'].values, color='r')
-    ax2.plot(r['multi_scenario_forecast']['revenue'].values, color='b')
-    # ax2.set_yscale('log')
+    # Plot anticipated shock baselines
+    x = range(1, 53)
+    ax1.plot(x, r['unanticipated_emissions_intensity_shock_3_ci']['baselines'].values, color='r')
     plt.show()
 
+    # Persistence-based forecast
+    # r = plots.get_historic_energy_output_data(use_cache=True)
+    # plots.plot_forecast_comparison()
+
+    # Compare variability associated with baseline and scheme revenue for different calibration intervals
+    # plots.plot_calibration_interval_baseline_revenue_variability()
+
+    # Compare prices and scheme revenue under a carbon tax and REP scheme
+    # plots.carbon_tax_rep_scheme_comparison_plot()

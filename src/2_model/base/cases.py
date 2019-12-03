@@ -195,9 +195,9 @@ class ModelCases:
                                 n_intervals=params['calibration_intervals'],
                                 eligible_generators=m_mpc.G)
 
-                        # Update emissions intensities if there is an anticipated emissions intensity shock
+                        # Update emissions intensities used in MPC model if an anticipated emissions intensity shock
                         if ((params['case_name'].startswith('anticipated_emissions_intensity_shock'))
-                                and (next_y == params['emissions_shock_year'])
+                                and (next_y >= params['emissions_shock_year'])
                                 and (next_w > params['emissions_shock_week'] - params['calibration_intervals'])):
 
                             # Emissions intensities for future calibration intervals when shock is anticipated
@@ -207,6 +207,15 @@ class ModelCases:
                                     # Update emissions intensities if shock week within the forecast horizon
                                     m_mpc.EMISSIONS_RATE[g, c] = (params['emissions_shock_factor'][g]
                                                                   * float(self.data.generators.loc[g, 'EMISSIONS']))
+
+                        # Update emissions intensities in UC model if shock will / has occurred next week
+                        if ((params['case_name'].startswith('anticipated_emissions_intensity_shock'))
+                                and (next_y >= params['emissions_shock_year'])
+                                and (next_w >= params['emissions_shock_week'])):
+
+                            for g in m_uc.G:
+                                m_uc.EMISSIONS_RATE[g] = (params['emissions_shock_factor'][g]
+                                                          * float(self.data.generators.loc[g, 'EMISSIONS']))
 
                         # Compute revenue target to use when updating baselines
                         revenue_target = self.get_mpc_revenue_target_input(next_y, next_w, params['revenue_target'],
@@ -372,96 +381,6 @@ class ModelCases:
                             'permit_price': {g: float(40) for g in m_d.G},
                             'baseline_update_required': False},
 
-                       'revenue_target_1_ci':
-                           {'years': years, 'weeks': weeks, 'days': days,
-                            'overlap_intervals': 17,
-                            'calibration_intervals': 1,
-                            'scenarios': 1,
-                            'baseline_start': 1,
-                            'case_name': 'revenue_target_1_ci',
-                            'output_dir': os.path.join(output_dir, 'revenue_target_1_ci'),
-                            'revenue_floor': None,
-                            'revenue_target': revenue_target,
-                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
-                            'baseline_update_required': True},
-
-                       'revenue_target_3_ci':
-                           {'years': years, 'weeks': weeks, 'days': days,
-                            'overlap_intervals': 17,
-                            'calibration_intervals': 3,
-                            'scenarios': 1,
-                            'baseline_start': 1,
-                            'case_name': 'revenue_target_3_ci',
-                            'output_dir': os.path.join(output_dir, 'revenue_target_3_ci'),
-                            'revenue_floor': None,
-                            'revenue_target': revenue_target,
-                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
-                            'baseline_update_required': True},
-
-                       'anticipated_emissions_intensity_shock_1_ci':
-                           {'years': years, 'weeks': weeks, 'days': days,
-                            'overlap_intervals': 17,
-                            'calibration_intervals': 1,
-                            'scenarios': 1,
-                            'baseline_start': 1,
-                            'case_name': 'anticipated_emissions_intensity_shock_1_ci',
-                            'output_dir': os.path.join(output_dir, 'anticipated_emissions_intensity_shock_1_ci'),
-                            'revenue_floor': None,
-                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
-                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
-                            'emissions_shock_factor': emissions_shock_factor,
-                            'emissions_shock_year': 2018,
-                            'emissions_shock_week': 10,
-                            'baseline_update_required': True},
-
-                       'anticipated_emissions_intensity_shock_3_ci':
-                           {'years': years, 'weeks': weeks, 'days': days,
-                            'overlap_intervals': 17,
-                            'calibration_intervals': 3,
-                            'scenarios': 1,
-                            'baseline_start': 1,
-                            'case_name': 'anticipated_emissions_intensity_shock_3_ci',
-                            'output_dir': os.path.join(output_dir, 'anticipated_emissions_intensity_shock_3_ci'),
-                            'revenue_floor': None,
-                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
-                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
-                            'emissions_shock_factor': emissions_shock_factor,
-                            'emissions_shock_year': 2018,
-                            'emissions_shock_week': 10,
-                            'baseline_update_required': True},
-
-                       'unanticipated_emissions_intensity_shock_1_ci':
-                           {'years': years, 'weeks': weeks, 'days': days,
-                            'overlap_intervals': 17,
-                            'calibration_intervals': 1,
-                            'scenarios': 1,
-                            'baseline_start': 1,
-                            'case_name': 'unanticipated_emissions_intensity_shock_1_ci',
-                            'output_dir': os.path.join(output_dir, 'unanticipated_emissions_intensity_shock_1_ci'),
-                            'revenue_floor': None,
-                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
-                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
-                            'emissions_shock_factor': emissions_shock_factor,
-                            'emissions_shock_year': 2018,
-                            'emissions_shock_week': 10,
-                            'baseline_update_required': True},
-
-                       'unanticipated_emissions_intensity_shock_3_ci':
-                           {'years': years, 'weeks': weeks, 'days': days,
-                            'overlap_intervals': 17,
-                            'calibration_intervals': 3,
-                            'scenarios': 1,
-                            'baseline_start': 1,
-                            'case_name': 'unanticipated_emissions_intensity_shock_3_ci',
-                            'output_dir': os.path.join(output_dir, 'unanticipated_emissions_intensity_shock_3_ci'),
-                            'revenue_floor': None,
-                            'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
-                            'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
-                            'emissions_shock_factor': emissions_shock_factor,
-                            'emissions_shock_year': 2018,
-                            'emissions_shock_week': 10,
-                            'baseline_update_required': True},
-
                        'renewables_eligibility':
                            {'years': years, 'weeks': weeks, 'days': days,
                             'overlap_intervals': 17,
@@ -554,9 +473,62 @@ class ModelCases:
                                                }
                                           }
 
+        # Revenue targeting with different numbers of calibration intervals
+        revenue_target_params = {f'revenue_target_{c}_ci':
+                                     {'years': years, 'weeks': weeks, 'days': days,
+                                      'overlap_intervals': 17,
+                                      'calibration_intervals': 1,
+                                      'scenarios': 1,
+                                      'baseline_start': 1,
+                                      'case_name': f'revenue_target_{c}_ci',
+                                      'output_dir': os.path.join(output_dir, f'revenue_target_{c}_ci'),
+                                      'revenue_floor': None,
+                                      'revenue_target': revenue_target,
+                                      'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in m_d.G},
+                                      'baseline_update_required': True} for c in [1, 3, 6]}
+
+        # Unanticipated emissions intensity shock with different calibration intervals
+        unanticipated_shock_params = {f'unanticipated_emissions_intensity_shock_{c}_ci':
+                                          {'years': years, 'weeks': weeks, 'days': days,
+                                           'overlap_intervals': 17,
+                                           'calibration_intervals': 3,
+                                           'scenarios': 1,
+                                           'baseline_start': 1,
+                                           'case_name': f'unanticipated_emissions_intensity_shock_{c}_ci',
+                                           'output_dir': os.path.join(output_dir,
+                                                                      f'unanticipated_emissions_intensity_shock_{c}_ci'),
+                                           'revenue_floor': None,
+                                           'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
+                                           'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
+                                                            m_d.G},
+                                           'emissions_shock_factor': emissions_shock_factor,
+                                           'emissions_shock_year': 2018,
+                                           'emissions_shock_week': 10,
+                                           'baseline_update_required': True} for c in [1, 3, 6]}
+
+        # Anticipated emissions intensity shock with different calibration intervals
+        anticipated_shock_params = {f'anticipated_emissions_intensity_shock_{c}_ci':
+                                        {'years': years, 'weeks': weeks, 'days': days,
+                                         'overlap_intervals': 17,
+                                         'calibration_intervals': 3,
+                                         'scenarios': 1,
+                                         'baseline_start': 1,
+                                         'case_name': f'anticipated_emissions_intensity_shock_{c}_ci',
+                                         'output_dir': os.path.join(output_dir,
+                                                                    f'anticipated_emissions_intensity_shock_{c}_ci'),
+                                         'revenue_floor': None,
+                                         'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
+                                         'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
+                                                          m_d.G},
+                                         'emissions_shock_factor': emissions_shock_factor,
+                                         'emissions_shock_year': 2018,
+                                         'emissions_shock_week': 10,
+                                         'baseline_update_required': True} for c in [1, 3, 6]}
+
         # Combine all cases into a single dictionary
         case_params = {**case_params, **calibration_interval_params, **persistence_forecast_params,
-                       **multi_scenario_forecast_params}
+                       **multi_scenario_forecast_params, **revenue_target_params, **unanticipated_shock_params,
+                       **anticipated_shock_params}
 
         return case_params
 

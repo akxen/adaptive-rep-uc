@@ -19,8 +19,8 @@ if __name__ == '__main__':
 
     # Run all cases
     # for name, parameters in case_parameters.items():
-    for name in ['anticipated_emissions_intensity_shock_1_ci', 'anticipated_emissions_intensity_shock_3_ci',
-                 'unanticipated_emissions_intensity_shock_1_ci', 'unanticipated_emissions_intensity_shock_3_ci']:
+    for name in ['anticipated_emissions_intensity_shock_6_ci', 'unanticipated_emissions_intensity_shock_6_ci',
+                 'revenue_target_6_ci']:
         parameters = case_parameters[name]
         print(f'Running case: {name}')
         print(parameters)
