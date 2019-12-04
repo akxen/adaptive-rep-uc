@@ -423,20 +423,20 @@ class ModelCases:
                        }
 
         # Testing various calibration interval durations
-        calibration_interval_params = {f'{i}_calibration_intervals':
+        calibration_interval_params = {f'{c}_calibration_intervals':
                                            {'years': years, 'weeks': weeks, 'days': days,
                                             'overlap_intervals': 17,
-                                            'calibration_intervals': i,
+                                            'calibration_intervals': c,
                                             'scenarios': 1,
                                             'baseline_start': 1,
-                                            'case_name': f'{i}_calibration_intervals',
-                                            'output_dir': os.path.join(output_dir, f'{i}_calibration_intervals'),
+                                            'case_name': f'{c}_calibration_intervals',
+                                            'output_dir': os.path.join(output_dir, f'{c}_calibration_intervals'),
                                             'revenue_floor': None,
                                             'revenue_target': {y: {w: float(0) for w in weeks} for y in years},
                                             'permit_price': {g: float(40) if g in m_d.G_THERM else float(0) for g in
                                                              m_d.G},
                                             'baseline_update_required': True}
-                                       for i in range(1, 7)}
+                                       for c in range(1, 7)}
 
         # Persistence-based forecast - 3 calibration intervals for 2017-2018
         persistence_forecast_params = {f'persistence_forecast':
@@ -477,7 +477,7 @@ class ModelCases:
         revenue_target_params = {f'revenue_target_{c}_ci':
                                      {'years': years, 'weeks': weeks, 'days': days,
                                       'overlap_intervals': 17,
-                                      'calibration_intervals': 1,
+                                      'calibration_intervals': c,
                                       'scenarios': 1,
                                       'baseline_start': 1,
                                       'case_name': f'revenue_target_{c}_ci',
@@ -491,7 +491,7 @@ class ModelCases:
         unanticipated_shock_params = {f'unanticipated_emissions_intensity_shock_{c}_ci':
                                           {'years': years, 'weeks': weeks, 'days': days,
                                            'overlap_intervals': 17,
-                                           'calibration_intervals': 3,
+                                           'calibration_intervals': c,
                                            'scenarios': 1,
                                            'baseline_start': 1,
                                            'case_name': f'unanticipated_emissions_intensity_shock_{c}_ci',
@@ -510,7 +510,7 @@ class ModelCases:
         anticipated_shock_params = {f'anticipated_emissions_intensity_shock_{c}_ci':
                                         {'years': years, 'weeks': weeks, 'days': days,
                                          'overlap_intervals': 17,
-                                         'calibration_intervals': 3,
+                                         'calibration_intervals': c,
                                          'scenarios': 1,
                                          'baseline_start': 1,
                                          'case_name': f'anticipated_emissions_intensity_shock_{c}_ci',

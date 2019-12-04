@@ -920,7 +920,8 @@ class CreatePlots:
         results = {}
 
         for c in ['anticipated_emissions_intensity_shock_1_ci', 'anticipated_emissions_intensity_shock_3_ci',
-                  'unanticipated_emissions_intensity_shock_1_ci', 'unanticipated_emissions_intensity_shock_3_ci']:
+                  'anticipated_emissions_intensity_shock_6_ci', 'unanticipated_emissions_intensity_shock_1_ci',
+                  'unanticipated_emissions_intensity_shock_3_ci', 'unanticipated_emissions_intensity_shock_6_ci']:
 
             # Generators under scheme's remit
             generators = self.results.data.get_thermal_unit_duids()
@@ -941,21 +942,101 @@ class CreatePlots:
     def plot_emissions_intensity_shock(self):
         """Plot response of baseline and scheme revenue to a persistent change to generator emissions intensities"""
 
-        # Extracting into easier to handle variable names
-        as_s, as_l = r['anticipated_emissions_intensity_shock_1_ci'], r['anticipated_emissions_intensity_shock_3_ci']
-        us_s, us_l = r['unanticipated_emissions_intensity_shock_1_ci'], r[
-            'unanticipated_emissions_intensity_shock_3_ci']
+        # Get data
+        r = self.get_emissions_intensity_shock_plot_data(use_cache=True)
 
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex=True)
 
-        long_style = {'color': 'r', 'linewidth': 0.7}
-        short_style = {'color': 'b', 'linewidth': 0.7}
-        emissions_style = {'color': 'orange', 'linewidth': 0.7, 'linestyle': '--'}
+        # Share selected axes
+        ax1.get_shared_y_axes().join(ax1, ax2)
+        ax1.get_shared_y_axes().join(ax3, ax4)
 
-        # Plot anticipated shock
+        # Plot anticipated shock baselines
         x = range(1, 53)
-        ax1.plot(x, as_s['baselines'], **short_style)
-        ax1.plot(x, as_l['baselines'], **long_style)
+        ci_1_style = {'color': '#d63636', 'linewidth': 1.3, 'alpha': 0.8}
+        ci_3_style = {'color': '#4071e3', 'linewidth': 1.3, 'alpha': 0.8}
+        ci_6_style = {'color': '#23a85d', 'linewidth': 1.3, 'alpha': 0.8}
+
+        # Plot anticipated shock baselines
+        ax1.plot(x, r['anticipated_emissions_intensity_shock_1_ci']['baselines'].values, **ci_1_style)
+        ax1.plot(x, r['anticipated_emissions_intensity_shock_3_ci']['baselines'].values, **ci_3_style)
+        ax1.plot(x, r['anticipated_emissions_intensity_shock_6_ci']['baselines'].values, **ci_6_style)
+
+        # Plot unanticipated shock baselines
+        ax2.plot(x, r['unanticipated_emissions_intensity_shock_1_ci']['baselines'].values, **ci_1_style)
+        ax2.plot(x, r['unanticipated_emissions_intensity_shock_3_ci']['baselines'].values, **ci_3_style)
+        ax2.plot(x, r['unanticipated_emissions_intensity_shock_6_ci']['baselines'].values, **ci_6_style)
+
+        # Plot anticipated shock revenue
+        ax3.plot(x, r['anticipated_emissions_intensity_shock_1_ci']['revenue'].values, **ci_1_style)
+        ax3.plot(x, r['anticipated_emissions_intensity_shock_3_ci']['revenue'].values, **ci_3_style)
+        ax3.plot(x, r['anticipated_emissions_intensity_shock_6_ci']['revenue'].values, **ci_6_style)
+
+        # Plot unanticipated shock revenue
+        ax4.plot(x, r['unanticipated_emissions_intensity_shock_1_ci']['revenue'].values, **ci_1_style)
+        ax4.plot(x, r['unanticipated_emissions_intensity_shock_3_ci']['revenue'].values, **ci_3_style)
+        ax4.plot(x, r['unanticipated_emissions_intensity_shock_6_ci']['revenue'].values, **ci_6_style)
+
+        # Add line denoting week of shock
+        shock_line_style = {'color': 'k', 'linestyle': '--', 'linewidth': 0.8, 'alpha': 0.8}
+        ax1.plot([10, 10], [0.6, 1.1], **shock_line_style)
+        ax2.plot([10, 10], [0.6, 1.1], **shock_line_style)
+        ax3.plot([10, 10], [-4e7, 4e7], **shock_line_style)
+        ax4.plot([10, 10], [-4e7, 4e7], **shock_line_style)
+
+        # Set axes limits
+        ax1.set_ylim([0.68, 1.05])
+        ax2.set_ylim([0.68, 1.05])
+        ax3.set_ylim([-3.8e7, 3.5e7])
+        ax4.set_ylim([-3.8e7, 3.5e7])
+
+        # Add legend
+        ax2.legend(['1 interval', '3 intervals', '6 intervals'], fontsize=6, loc='upper right', frameon=False)
+
+        # Add axes labels and plot titles
+        ax3.set_xlabel('Week', fontsize=7)
+        ax4.set_xlabel('Week', fontsize=7)
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7)
+        ax3.set_ylabel('Revenue ($)', fontsize=7)
+        ax1.set_title('Anticipated', fontsize=7)
+        ax2.set_title('Unanticipated', fontsize=7)
+
+        # Format major and minor ticks
+        ax1.yaxis.set_major_locator(plt.MultipleLocator(0.1))
+        ax1.yaxis.set_minor_locator(plt.MultipleLocator(0.05))
+        ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
+        ax1.xaxis.set_minor_locator(plt.MultipleLocator(5))
+
+        ax2.yaxis.set_major_locator(plt.MultipleLocator(0.1))
+        ax2.yaxis.set_minor_locator(plt.MultipleLocator(0.05))
+
+        ax3.yaxis.set_major_locator(plt.MultipleLocator(2e7))
+        ax3.yaxis.set_minor_locator(plt.MultipleLocator(1e7))
+        ax4.yaxis.set_major_locator(plt.MultipleLocator(2e7))
+        ax4.yaxis.set_minor_locator(plt.MultipleLocator(1e7))
+
+        # Use scientific notation for revenue
+        ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax3.yaxis.get_offset_text().set_size(7)
+        ax3.yaxis.get_offset_text().set(ha='right', va='center')
+
+        # Change fontsize for tick labels
+        for ax in [ax1, ax2, ax3, ax4]:
+            ax.tick_params(labelsize=7)
+
+        # Remove tick labels
+        ax2.axes.yaxis.set_ticklabels([])
+        ax4.axes.yaxis.set_ticklabels([])
+
+        # Set figure size
+        fig.set_size_inches((self.cm_to_in(16.5), self.cm_to_in(10)))
+
+        # Adjust subplot position
+        fig.subplots_adjust(left=0.08, top=0.95, right=0.98, wspace=0.15)
+
+        # Save figures
+        fig.savefig(os.path.join(self.output_dir, 'emissions_intensity_shock.png'))
+        fig.savefig(os.path.join(self.output_dir, 'emissions_intensity_shock.pdf'))
 
         plt.show()
 
@@ -1181,14 +1262,7 @@ if __name__ == '__main__':
     # plots.plot_scheme_eligibility()
 
     # Emissions intensity shock
-    r = plots.get_emissions_intensity_shock_plot_data(use_cache=True)
-
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
-
-    # Plot anticipated shock baselines
-    x = range(1, 53)
-    ax1.plot(x, r['unanticipated_emissions_intensity_shock_3_ci']['baselines'].values, color='r')
-    plt.show()
+    plots.plot_emissions_intensity_shock()
 
     # Persistence-based forecast
     # r = plots.get_historic_energy_output_data(use_cache=True)
