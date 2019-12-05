@@ -14,6 +14,7 @@ import pandas as pd
 import matplotlib.ticker
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from processing import Results
@@ -40,6 +41,10 @@ class CreatePlots:
 
         # Directory containing output files / plots
         self.output_dir = output_dir
+
+        # Mapping for standardised colors
+        self.colours = {'red': '#f21d24', 'blue': '#4262ed', 'green': '#44ba3a', 'purple': '#a531cc',
+                        'orange': '#e8aa46'}
 
     @staticmethod
     def cm_to_in(cm):
@@ -230,7 +235,8 @@ class CreatePlots:
         # Container for results
         results = {}
 
-        for c in ['1_calibration_intervals', '3_calibration_intervals', 'revenue_target_1_ci', 'revenue_target_3_ci']:
+        for c in ['1_calibration_intervals', '3_calibration_intervals', '6_calibration_intervals',
+                  'revenue_target_1_ci', 'revenue_target_3_ci', 'revenue_target_6_ci']:
             # Get baselines and cumulative scheme revenue
             baselines, revenue = self.results.get_baselines_and_revenue(c)
 
@@ -264,45 +270,41 @@ class CreatePlots:
             print(e)
             r = self.get_revenue_targeting_plot_data(use_cache=False, save=True)
 
-        # Revenue neutral target with 1 and 3 calibration intervals respectively
-        n_s = r['1_calibration_intervals']
-        n_l = r['3_calibration_intervals']
-
-        # Positive revenue target with 1 and 3 calibration intervals respectively
-        p_s = r['revenue_target_1_ci']
-        p_l = r['revenue_target_3_ci']
-
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex=True)
 
         # Line styles
-        short_ci_style = {'color': '#225de6', 'alpha': 0.7, 'linewidth': 1}
-        long_ci_style = {'color': 'r', 'alpha': 0.7, 'linewidth': 1}
-        emissions_intensity_style = {'color': 'g', 'alpha': 0.7, 'linewidth': 0.7, 'linestyle': '--'}
-        target_style = {'color': 'k', 'alpha': 0.7, 'linewidth': 0.7, 'linestyle': '--'}
+        ci_1_style = {'color': self.colours['red'], 'alpha': 0.7, 'linewidth': 1}
+        ci_3_style = {'color': self.colours['blue'], 'alpha': 0.7, 'linewidth': 1}
+        ci_6_style = {'color': self.colours['green'], 'alpha': 0.7, 'linewidth': 1}
+        emissions_style = {'color': self.colours['purple'], 'alpha': 0.7, 'linewidth': 0.7, 'linestyle': '--'}
+        revenue_style = {'color': 'grey', 'alpha': 0.7, 'linewidth': 0.7, 'linestyle': '--'}
 
         # Plot revenue neutral baselines with different calibration intervals
-        ax1.plot(range(1, len(n_s['baselines'].values) + 1), n_s['baselines'].values, **short_ci_style)
-        ax1.plot(range(1, len(n_l['baselines'].values) + 1), n_l['baselines'].values, **long_ci_style)
-        ax1.plot(range(1, len(n_l['emissions_intensity'].values) + 1), n_l['emissions_intensity'].values,
-                 **emissions_intensity_style)
+        x = range(1, 53)
+        ax1.plot(x, r['1_calibration_intervals']['baselines'].values, **ci_1_style)
+        ax1.plot(x, r['3_calibration_intervals']['baselines'].values, **ci_3_style)
+        ax1.plot(x, r['6_calibration_intervals']['baselines'].values, **ci_6_style)
+        ax1.plot(x, r['1_calibration_intervals']['emissions_intensity'].values, **emissions_style)
 
-        # Plot price targeting baselines
-        ax2.plot(range(1, len(p_s['baselines'].values) + 1), p_s['baselines'].values, **short_ci_style)
-        ax2.plot(range(1, len(p_l['baselines'].values) + 1), p_l['baselines'].values, **long_ci_style)
-        ax2.plot(range(1, len(p_l['emissions_intensity'].values) + 1), p_l['emissions_intensity'].values,
-                 **emissions_intensity_style)
+        # Plot revenue targeting baselines
+        ax2.plot(x, r['revenue_target_1_ci']['baselines'].values, **ci_1_style)
+        ax2.plot(x, r['revenue_target_3_ci']['baselines'].values, **ci_3_style)
+        ax2.plot(x, r['revenue_target_6_ci']['baselines'].values, **ci_6_style)
+        ax2.plot(x, r['revenue_target_1_ci']['emissions_intensity'].values, **emissions_style)
 
-        # Plot revenue neutral target paths with different calibration intervals
-        ax3.plot(range(1, len(n_s['revenue'].values) + 1), n_s['revenue'].values, **short_ci_style)
-        ax3.plot(range(1, len(n_l['revenue'].values) + 1), n_l['revenue'].values, **long_ci_style)
+        # Plot scheme revenue with revenue neutral target
+        ax3.plot(x, r['1_calibration_intervals']['revenue'].values, **ci_1_style)
+        ax3.plot(x, r['3_calibration_intervals']['revenue'].values, **ci_3_style)
+        ax3.plot(x, r['6_calibration_intervals']['revenue'].values, **ci_6_style)
 
-        # Plot baseline when positive revenue target is implemented
-        ax4.plot(range(1, len(p_s['revenue'].values) + 1), p_s['revenue'].values, **short_ci_style)
-        ax4.plot(range(1, len(p_l['revenue'].values) + 1), p_l['revenue'].values, **long_ci_style)
+        # Plot revenue when positive revenue target is implemented
+        ax4.plot(x, r['revenue_target_1_ci']['revenue'].values, **ci_1_style)
+        ax4.plot(x, r['revenue_target_3_ci']['revenue'].values, **ci_3_style)
+        ax4.plot(x, r['revenue_target_6_ci']['revenue'].values, **ci_6_style)
 
         # Plot revenue targets
-        ax3.plot(range(1, 53), [n_s['parameters']['revenue_target'][2018][i] for i in range(1, 53)], **target_style)
-        ax4.plot(range(1, 53), [p_s['parameters']['revenue_target'][2018][i] for i in range(1, 53)], **target_style)
+        ax3.plot(x, [r['1_calibration_intervals']['parameters']['revenue_target'][2018][i] for i in x], **revenue_style)
+        ax4.plot(x, [r['revenue_target_1_ci']['parameters']['revenue_target'][2018][i] for i in x], **revenue_style)
 
         # Set axis limit
         ax1.set_ylim([0.96, 1.03])
@@ -337,7 +339,7 @@ class CreatePlots:
 
         # Add legend
         lns = ax3.lines + [ax1.lines[-1], ax4.lines[-1]]
-        labs = ['1 interval', '3 intervals', 'revenue target', 'avg. emissions intensity']
+        labs = ['1 interval', '3 intervals', '6 intervals', 'revenue target', 'avg. emissions intensity']
         ax3.legend(lns, labs, frameon=False, fontsize=5, loc=2, bbox_to_anchor=(-0.008, 1))
 
         # Plot titles
@@ -365,10 +367,10 @@ class CreatePlots:
         ax3.yaxis.get_offset_text().set(ha='right', va='center')
 
         # Set figure size
-        fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(7.8)))
+        fig.set_size_inches((self.cm_to_in(16.5), self.cm_to_in(7.8)))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.17, top=0.95, bottom=0.12, right=0.99, wspace=0.12, hspace=0.18)
+        fig.subplots_adjust(left=0.08, top=0.95, bottom=0.12, right=0.99, wspace=0.12, hspace=0.18)
 
         # Save figures
         fig.savefig(os.path.join(self.output_dir, 'revenue_targeting.png'))
@@ -478,7 +480,6 @@ class CreatePlots:
 
         plt.show()
 
-
     def get_scheme_eligibility_plot_data(self, use_cache=False, save=True):
         """Compare scenarios when renewables are eligible and ineligible to receive credits / penalties"""
 
@@ -585,7 +586,7 @@ class CreatePlots:
         ax2.yaxis.set_minor_locator(plt.MultipleLocator(5))
 
         ax4.yaxis.set_major_locator(plt.MultipleLocator(2.5e6))
-        ax4.yaxis.set_minor_locator(plt.MultipleLocator(2.5e6/2))
+        ax4.yaxis.set_minor_locator(plt.MultipleLocator(2.5e6 / 2))
 
         ax3.yaxis.set_major_locator(plt.MultipleLocator(0.04))
         ax3.yaxis.set_minor_locator(plt.MultipleLocator(0.02))
@@ -665,7 +666,7 @@ class CreatePlots:
 
             # Convert dispatch interval power to energy
             df_d = df_d.astype(float)
-            df_d = df_d.mul(15/60)
+            df_d = df_d.mul(15 / 60)
 
             # Re-sample to daily resolution. Set negative values to zero.
             df_w = df_d.resample('1w').sum()
@@ -922,7 +923,6 @@ class CreatePlots:
         for c in ['anticipated_emissions_intensity_shock_1_ci', 'anticipated_emissions_intensity_shock_3_ci',
                   'anticipated_emissions_intensity_shock_6_ci', 'unanticipated_emissions_intensity_shock_1_ci',
                   'unanticipated_emissions_intensity_shock_3_ci', 'unanticipated_emissions_intensity_shock_6_ci']:
-
             # Generators under scheme's remit
             generators = self.results.data.get_thermal_unit_duids()
 
@@ -953,9 +953,12 @@ class CreatePlots:
 
         # Plot anticipated shock baselines
         x = range(1, 53)
-        ci_1_style = {'color': '#d63636', 'linewidth': 1.3, 'alpha': 0.8}
-        ci_3_style = {'color': '#4071e3', 'linewidth': 1.3, 'alpha': 0.8}
-        ci_6_style = {'color': '#23a85d', 'linewidth': 1.3, 'alpha': 0.8}
+        ci_1_style = {'color': self.colours['red'], 'linewidth': 1.3, 'alpha': 0.8}
+        ci_3_style = {'color': self.colours['blue'], 'linewidth': 1.3, 'alpha': 0.8}
+        ci_6_style = {'color': self.colours['green'], 'linewidth': 1.3, 'alpha': 0.8}
+        emissions_style = {'color': self.colours['purple'], 'linewidth': 0.8, 'linestyle': '--', 'alpha': 0.8}
+        revenue_style = {'color': 'grey', 'linewidth': 0.8, 'linestyle': '--', 'alpha': 0.8}
+        shock_style = {'color': 'k', 'linestyle': ':', 'linewidth': 0.8, 'alpha': 0.8}
 
         # Plot anticipated shock baselines
         ax1.plot(x, r['anticipated_emissions_intensity_shock_1_ci']['baselines'].values, **ci_1_style)
@@ -977,21 +980,31 @@ class CreatePlots:
         ax4.plot(x, r['unanticipated_emissions_intensity_shock_3_ci']['revenue'].values, **ci_3_style)
         ax4.plot(x, r['unanticipated_emissions_intensity_shock_6_ci']['revenue'].values, **ci_6_style)
 
+        # Plot system emissions intensity
+        ax1.plot(x, r['anticipated_emissions_intensity_shock_1_ci']['emissions_intensity'].values, **emissions_style)
+        ax2.plot(x, r['unanticipated_emissions_intensity_shock_1_ci']['emissions_intensity'].values, **emissions_style)
+
+        # Plot revenue target
+        ln_rev = ax3.plot([-1, 55], [0, 0], **revenue_style)
+        ax4.plot([-1, 55], [0, 0], **revenue_style)
+
         # Add line denoting week of shock
-        shock_line_style = {'color': 'k', 'linestyle': '--', 'linewidth': 0.8, 'alpha': 0.8}
-        ax1.plot([10, 10], [0.6, 1.1], **shock_line_style)
-        ax2.plot([10, 10], [0.6, 1.1], **shock_line_style)
-        ax3.plot([10, 10], [-4e7, 4e7], **shock_line_style)
-        ax4.plot([10, 10], [-4e7, 4e7], **shock_line_style)
+        ax1.plot([10, 10], [0.6, 1.1], **shock_style)
+        ax2.plot([10, 10], [0.6, 1.1], **shock_style)
+        ax3.plot([10, 10], [-4e7, 4e7], **shock_style)
+        ax4.plot([10, 10], [-4e7, 4e7], **shock_style)
 
         # Set axes limits
         ax1.set_ylim([0.68, 1.05])
+        ax1.set_xlim([0, 53])
         ax2.set_ylim([0.68, 1.05])
         ax3.set_ylim([-3.8e7, 3.5e7])
         ax4.set_ylim([-3.8e7, 3.5e7])
 
         # Add legend
-        ax2.legend(['1 interval', '3 intervals', '6 intervals'], fontsize=6, loc='upper right', frameon=False)
+        lns = ax2.lines[:-1] + ln_rev
+        labs = ['1 interval', '3 intervals', '6 intervals', 'avg. emissions intensity', 'revenue target']
+        ax2.legend(lns, labs, fontsize=6, loc='upper right', frameon=False)
 
         # Add axes labels and plot titles
         ax3.set_xlabel('Week', fontsize=7)
@@ -1240,11 +1253,229 @@ class CreatePlots:
         plt.show()
 
 
-if __name__ == '__main__':
-    output_directory = os.path.join(os.path.dirname(__file__), 'output', 'figures')
+class CreateTables:
+    def __init__(self, output_dir):
+        # Object used to process results
+        self.results = Results()
 
-    # Object used to create plots
-    plots = CreatePlots(output_directory)
+        # Output directory for tables
+        self.output_dir = output_dir
+
+    @staticmethod
+    def load_cache(directory, filename):
+        """Load cached results"""
+
+        with open(os.path.join(directory, filename), 'rb') as f:
+            results = pickle.load(f)
+
+        return results
+
+    @staticmethod
+    def save(results, directory, filename):
+        """Save results"""
+
+        with open(os.path.join(directory, filename), 'wb') as f:
+            pickle.dump(results, f)
+
+    def get_summary_table_data(self, use_cache=False, save=True):
+        """Get data for table summarising results from all runs"""
+
+        filename = 'summary_table_data.pickle'
+
+        # Load cached file if specified and return (faster loading)
+        if use_cache:
+            results = self.load_cache(self.output_dir, filename)
+            return results
+
+        # Container for results
+        results = {}
+
+        cases = ([f'{i}_calibration_intervals' for i in range(1, 7)]
+                 + [f'revenue_target_{i}_ci' for i in [1, 3, 6]]
+                 + [f'anticipated_emissions_intensity_shock_{i}_ci' for i in [1, 3, 6]]
+                 + [f'unanticipated_emissions_intensity_shock_{i}_ci' for i in [1, 3, 6]]
+                 + ['bau', 'carbon_tax', 'renewables_eligibility', 'revenue_floor'])
+
+        for c in cases:
+            # Extract baselines, scheme revenue, and prices
+            baselines, revenue = self.results.get_baselines_and_revenue(c)
+            prices, _ = self.results.get_week_prices(c)
+
+            # Get emissions
+            emissions = self.results.get_day_emissions(c)
+
+            # Case parameters
+            parameters = self.results.get_case_parameters(c)
+
+            # Combine results into single dictionary
+            results[c] = {'baselines': baselines, 'revenue': revenue, 'prices': prices, 'emissions': emissions,
+                          'parameters': parameters}
+
+        # Save results
+        if save:
+            self.save(results, self.output_dir, filename)
+
+        return results
+
+    @staticmethod
+    def get_case_summary(results, case):
+        """Extract and format results for each case"""
+
+        # Results for case
+        c_r = results[case]
+
+        # Mappings between case names and index to be used in table
+        case_map = {**{f'{i}_calibration_intervals': ('revenue neutral', f'{i} CI') for i in range(1, 7)},
+                    **{f'unanticipated_emissions_intensity_shock_{i}_ci': ('unanticipated shock', f'{i} CI') for i in
+                       [1, 3, 6]},
+                    **{f'anticipated_emissions_intensity_shock_{i}_ci': ('anticipated shock', f'{i} CI') for i in
+                       [1, 3, 6]},
+                    **{f'revenue_target_{i}_ci': ('revenue target', f'{i} CI') for i in [1, 3, 6]},
+                    'revenue_floor': ('Revenue floor', '3 CI'),
+                    'bau': ('Benchmark', 'BAU'),
+                    'carbon_tax': ('Benchmark', 'Carbon tax'),
+                    'renewables_eligibility': ('Renewables eligibility', '3 CI'),
+                    }
+
+        # Extract price data
+        prices = pd.DataFrame({case_map[case]: {'mean': c_r['prices'].mean(), 'std': c_r['prices'].std(),
+                                                'min': c_r['prices'].min(), 'max': c_r['prices'].max()}}).T
+        prices = prices[['mean', 'std', 'min', 'max']]
+        prices = prices.round(2)
+
+        # Rename columns and index
+        prices.columns = pd.MultiIndex.from_product([['Price (\$/MWh)'], prices.columns])
+
+        # Extract emissions data
+        emissions = pd.DataFrame({case_map[case]: {'total': c_r['emissions'].sum()}}).T.div(1e6)
+        emissions = emissions.round(2)
+
+        # Rename columns and index
+        emissions.columns = pd.MultiIndex.from_product([['Emissions (MtCO$_{2}$)'], emissions.columns])
+
+        # Get revenue imbalance
+        revenue_target = pd.DataFrame(c_r['parameters']['revenue_target']).stack().reorder_levels([1, 0])
+
+        if case not in ['bau', 'carbon_tax']:
+            revenue_difference = c_r['revenue'].subtract(revenue_target)
+
+            # Compute statistics for revenue imbalance
+            revenue = pd.DataFrame({case_map[case]: {'mean': revenue_difference.mean(), 'std': revenue_difference.std(),
+                                                     'min': revenue_difference.min(),
+                                                     'max': revenue_difference.max()}}).T
+            revenue = revenue[['mean', 'std', 'min', 'max']].div(1e6)
+            revenue = revenue.round(2)
+
+            # Extract baseline data
+            baselines = pd.DataFrame({case_map[case]: {'mean': c_r['baselines'].mean(), 'std': c_r['baselines'].std(),
+                                                       'min': c_r['baselines'].min(), 'max': c_r['baselines'].max()}}).T
+            baselines = baselines[['mean', 'std', 'min', 'max']]
+            baselines = baselines.round(3)
+
+        else:
+            # Placeholders for business as usual case and carbon tax
+            revenue = pd.DataFrame({case_map[case]: {'mean': '-', 'std': '-', 'min': '-', 'max': '-'}}).T
+            revenue = revenue[['mean', 'std', 'min', 'max']]
+
+            # Baseline placeholders
+            baselines = pd.DataFrame({case_map[case]: {'mean': '-', 'std': '-', 'min': '-', 'max': '-'}}).T
+            baselines = baselines[['mean', 'std', 'min', 'max']]
+
+        # Rename columns
+        baselines.columns = pd.MultiIndex.from_product([['Baseline (tCO$_{2}$/MWh)'], baselines.columns])
+        revenue.columns = pd.MultiIndex.from_product([['Revenue imbalance (M\$)'], revenue.columns])
+
+        # Combine all statistics for a given case into a single DataFrame
+        case_summary = pd.concat([baselines, revenue, prices, emissions], axis=1)
+
+        return case_summary
+
+    def process_all_cases(self, results, table_name):
+        """Extract results for all cases"""
+
+        # Container for case results
+        case_summary_results = []
+
+        # Names of all cases to extract data for
+        all_cases = (['bau', 'carbon_tax']
+                     + [f'{i}_calibration_intervals' for i in range(1, 7)]
+                     + [f'revenue_target_{i}_ci' for i in [1, 3, 6]]
+                     + [f'anticipated_emissions_intensity_shock_{i}_ci' for i in [1, 3, 6]]
+                     + [f'unanticipated_emissions_intensity_shock_{i}_ci' for i in [1, 3, 6]]
+                     + ['renewables_eligibility', 'revenue_floor'])
+
+        # Extract and format data for all cases
+        for c in all_cases:
+            # Get results for each case
+            print('Processing', c)
+            case_results = self.get_case_summary(results, c)
+
+            # Append results to main container
+            case_summary_results.append(case_results)
+
+        # Concatenate into single DataFrame
+        df_results = pd.concat(case_summary_results)
+
+        # Save in latex format
+        df_results.to_latex(os.path.join(self.output_dir, table_name), column_format='ll*{13}{r}', escape=False,
+                            multicolumn_format='c')
+
+    @staticmethod
+    def format_summary_table(table_name):
+        """Apply formatting to summary table"""
+
+        # Load table
+        with open(os.path.join(tables.output_dir, table_name), 'r') as f:
+            tab = f.read()
+
+        # Apply formatting specific to table
+        tab_edit = tab.replace('Benchmark', r'\multicolumn{2}{l}{Benchmark} &&&&&&&&&&&&&\\')
+        tab_edit = tab_edit.replace('revenue neutral',
+                                    r'&&&&&&&&&&&&&& \\ \multicolumn{2}{l}{Revenue neutral} &&&&&&&&&&&&&\\')
+        tab_edit = tab_edit.replace('revenue target',
+                                    r'&&&&&&&&&&&&&& \\ \multicolumn{2}{l}{Revenue target} &&&&&&&&&&&&&\\')
+        tab_edit = tab_edit.replace('unanticipated shock',
+                                    r'&&&&&&&&&&&&&& \\ \multicolumn{2}{l}{Unanticipated shock} &&&&&&&&&&&&&\\')
+        tab_edit = tab_edit.replace(r'anticipated shock ',
+                                    r'&&&&&&&&&&&&&& \\ \multicolumn{2}{l}{Anticipated shock} &&&&&&&&&&&&&\\')
+        tab_edit = tab_edit.replace(r'Renewables eligibility ',
+                                    r'&&&&&&&&&&&&&& \\ \multicolumn{2}{l}{Renewables eligibility} &&&&&&&&&&&&&\\')
+        tab_edit = tab_edit.replace(r'Revenue floor ',
+                                    r'&&&&&&&&&&&&&& \\ \multicolumn{2}{l}{Revenue floor} &&&&&&&&&&&&&\\')
+
+        # Save new table
+        formatted_table_name = f"{table_name.split('.')[0]}_formatted.tex"
+        with open(os.path.join(tables.output_dir, formatted_table_name), 'w') as f:
+            f.write(tab_edit)
+
+        return tab, tab_edit
+
+    def create_summary_table(self):
+        """Create table summarising results from all cases and apply formatting"""
+
+        # Name of summary table
+        table_name = 'summary_table.tex'
+
+        # Get data used to construct summary table
+        try:
+            r = self.get_summary_table_data(use_cache=True)
+        except:
+            r = self.get_summary_table_data(use_cache=False)
+
+        # Construct table
+        self.process_all_cases(results=r, table_name=table_name)
+
+        # Apply formatting
+        self.format_summary_table(table_name)
+
+
+if __name__ == '__main__':
+    figures_output_directory = os.path.join(os.path.dirname(__file__), 'output', 'figures')
+    tables_output_directory = os.path.join(os.path.dirname(__file__), 'output', 'tables')
+
+    # Objects used to create plots and tables
+    plots = CreatePlots(figures_output_directory)
+    tables = CreateTables(tables_output_directory)
 
     # Plot baseline and revenue for different calibration interval durations
     # plots.plot_calibration_interval_comparison()
@@ -1262,7 +1493,7 @@ if __name__ == '__main__':
     # plots.plot_scheme_eligibility()
 
     # Emissions intensity shock
-    plots.plot_emissions_intensity_shock()
+    # plots.plot_emissions_intensity_shock()
 
     # Persistence-based forecast
     # r = plots.get_historic_energy_output_data(use_cache=True)
@@ -1273,3 +1504,6 @@ if __name__ == '__main__':
 
     # Compare prices and scheme revenue under a carbon tax and REP scheme
     # plots.carbon_tax_rep_scheme_comparison_plot()
+
+    # Get results to be used in results summary table
+    tables.create_summary_table()
