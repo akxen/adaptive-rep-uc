@@ -1358,18 +1358,39 @@ class CreateTables:
                     'renewables_eligibility': ('Renewables eligibility', '3 CI'),
                     }
 
+        # Add dagger for table notes to denote that CI = calibration intervals
+        case_map['1_calibration_intervals'] = ('revenue neutral', '1 CI$^{\dagger}$')
+
+        def pad_decimal_places(x, places):
+            """Zero pad to a given number of decimal places"""
+
+            # Split original number (should already be rounded)
+            integer, decimal = str(x).split('.')
+
+            # Check if already have required number of decimal places
+            if len(decimal) == places:
+                return f'{integer}.{decimal}'
+
+            # Number of zeros that must be padded
+            pad = places - len(decimal)
+
+            # New zero padded decimal number
+            number = f'{integer}.{decimal}' + ''.join(['0'] * pad)
+
+            return number
+
         # Extract price data
         prices = pd.DataFrame({case_map[case]: {'mean': c_r['prices'].mean(), 'std': c_r['prices'].std(),
                                                 'min': c_r['prices'].min(), 'max': c_r['prices'].max()}}).T
         prices = prices[['mean', 'std', 'min', 'max']]
-        prices = prices.round(2)
+        prices = prices.round(2).applymap(lambda x: pad_decimal_places(x, 2))
 
         # Rename columns and index
         prices.columns = pd.MultiIndex.from_product([['Price (\$/MWh)'], prices.columns])
 
         # Extract emissions data
         emissions = pd.DataFrame({case_map[case]: {'total': c_r['emissions'].sum()}}).T.div(1e6)
-        emissions = emissions.round(2)
+        emissions = emissions.round(2).applymap(lambda x: pad_decimal_places(x, 2))
 
         # Rename columns and index
         emissions.columns = pd.MultiIndex.from_product([['Emissions (MtCO$_{2}$)'], emissions.columns])
@@ -1385,13 +1406,13 @@ class CreateTables:
                                                      'min': revenue_difference.min(),
                                                      'max': revenue_difference.max()}}).T
             revenue = revenue[['mean', 'std', 'min', 'max']].div(1e6)
-            revenue = revenue.round(2)
+            revenue = revenue.round(2).applymap(lambda x: pad_decimal_places(x, 2))
 
             # Extract baseline data
             baselines = pd.DataFrame({case_map[case]: {'mean': c_r['baselines'].mean(), 'std': c_r['baselines'].std(),
                                                        'min': c_r['baselines'].min(), 'max': c_r['baselines'].max()}}).T
             baselines = baselines[['mean', 'std', 'min', 'max']]
-            baselines = baselines.round(3)
+            baselines = baselines.round(3).applymap(lambda x: pad_decimal_places(x, 3))
 
         else:
             # Placeholders for business as usual case and carbon tax
@@ -1498,38 +1519,39 @@ if __name__ == '__main__':
     plots = CreatePlots(figures_output_directory)
     tables = CreateTables(tables_output_directory)
 
-    # # Plot baseline and revenue for different calibration interval durations - checked
-    # r1 = plots.get_calibration_interval_comparison_plot_data(use_cache=True)
-    # plots.plot_calibration_interval_comparison()
+    # Plot baseline and revenue for different calibration interval durations
+    r1 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
+    plots.plot_calibration_interval_comparison()
 
-    # # Revenue targeting plot
-    # r2 = plots.get_revenue_targeting_plot_data(use_cache=True)
-    # plots.plot_revenue_targeting()
+    # Revenue targeting plot
+    r2 = plots.get_revenue_targeting_plot_data(use_cache=False)
+    plots.plot_revenue_targeting()
 
-    # # Revenue floor plot - checked
-    # r3 = plots.get_revenue_floor_plot_data(use_cache=True)
-    # plots.plot_revenue_floor()
+    # Revenue floor plot
+    r3 = plots.get_revenue_floor_plot_data(use_cache=False)
+    plots.plot_revenue_floor()
 
-    # # Scheme eligibility - checked
-    # r4 = plots.get_scheme_eligibility_plot_data(use_cache=True)
-    # plots.plot_scheme_eligibility()
+    # Scheme eligibility
+    r4 = plots.get_scheme_eligibility_plot_data(use_cache=False)
+    plots.plot_scheme_eligibility()
 
-    # # Emissions intensity shock - checked
-    # r5 = plots.get_emissions_intensity_shock_plot_data(use_cache=True)
-    # plots.plot_emissions_intensity_shock()
+    # Emissions intensity shock
+    r5 = plots.get_emissions_intensity_shock_plot_data(use_cache=False)
+    plots.plot_emissions_intensity_shock()
 
-    # Persistence-based forecast - checked
-    # r6 = plots.get_historic_energy_output_data(use_cache=True)
-    # plots.plot_forecast_comparison()
+    # Persistence-based forecast
+    # NOTE: running this assumes MMSDM DISPATCHUNITSCADA data has been downloaded and stored within a MySQL database
+    r6 = plots.get_historic_energy_output_data(use_cache=False)
+    plots.plot_forecast_comparison()
 
-    # Compare variability associated with baseline and scheme revenue for different calibration intervals - checked
-    # r7 = plots.get_calibration_interval_comparison_plot_data(use_cache=True)
-    # plots.plot_calibration_interval_baseline_revenue_variability()
+    # Compare variability associated with baseline and scheme revenue for different calibration intervals
+    r7 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
+    plots.plot_calibration_interval_baseline_revenue_variability()
 
-    # # Compare prices and scheme revenue under a carbon tax and REP scheme - checked
-    # r8 = plots.get_carbon_tax_rep_scheme_comparison_plot_data(use_cache=True)
-    # plots.carbon_tax_rep_scheme_comparison_plot()
+    # Compare prices and scheme revenue under a carbon tax and REP scheme
+    r8 = plots.get_carbon_tax_rep_scheme_comparison_plot_data(use_cache=False)
+    plots.carbon_tax_rep_scheme_comparison_plot()
 
     # Get results to be used in results summary table
-    r9 = tables.get_summary_table_data(use_cache=True)
+    r9 = tables.get_summary_table_data(use_cache=False)
     tables.create_summary_table()
