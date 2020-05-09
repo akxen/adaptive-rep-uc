@@ -330,14 +330,11 @@ class UnitCommitment:
         def energy_output_rule(_m, g, t):
             """Energy output"""
 
-            # If a storage unit
+            # If a storage unit - power output assumed constant over interval
             if g in m.G_STORAGE:
-                if t != m.T.first():
-                    return (m.p_out[g, t - 1] + m.p_out[g, t]) / 2
-                else:
-                    return (m.P0[g] + m.p_out[g, t]) / 2
+                return m.p_out[g, t]
 
-            # For all other units
+            # For all other units - assume constant ramp between power output targets over interval
             elif g in m.G.difference(m.G_STORAGE):
                 if t != m.T.first():
                     return (m.p_total[g, t - 1] + m.p_total[g, t]) / 2
