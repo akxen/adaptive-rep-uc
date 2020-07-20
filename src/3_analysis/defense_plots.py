@@ -13,6 +13,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.ticker
 import matplotlib.pyplot as plt
+from matplotlib import rc
+
+# activate latex text rendering
+rc('text', usetex=True)
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -120,12 +125,12 @@ class CreatePlots:
         fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, sharey=True, sharex=True)
 
         # Plot baselines
-        baseline_style = {'color': '#225de6', 'alpha': 0.7, 'linewidth': 1}
+        baseline_style = {'color': '#225de6', 'alpha': 0.7, 'linewidth': 0.8}
         for i, ax in enumerate([ax1, ax2, ax3, ax4, ax5, ax6]):
             ax.plot(range(1, len(r[i + 1]['baselines'].values) + 1), r[i + 1]['baselines'].values, **baseline_style)
 
         # Plot scheme emissions intensity
-        emissions_intensity_style = {'color': '#39850b', 'alpha': 0.7, 'linestyle': '--', 'linewidth': 1.1}
+        emissions_intensity_style = {'color': '#39850b', 'alpha': 0.7, 'linestyle': '--', 'linewidth': 0.8}
         for i, ax in enumerate([ax1, ax2, ax3, ax4, ax5, ax6]):
             ax.plot(range(1, len(r[i + 1]['emissions_intensity'].values) + 1), r[i + 1]['emissions_intensity'].values,
                     **emissions_intensity_style)
@@ -139,7 +144,7 @@ class CreatePlots:
         ax62 = ax6.twinx()
 
         # Plot scheme revenue
-        revenue_style = {'color': '#e63622', 'alpha': 0.8, 'linewidth': 1}
+        revenue_style = {'color': '#e63622', 'alpha': 0.8, 'linewidth': 0.8}
         for i, ax in enumerate([ax12, ax22, ax32, ax42, ax52, ax62]):
             ax.plot(range(1, len(r[i + 1]['revenue'].values) + 1), r[i + 1]['revenue'].values, **revenue_style)
 
@@ -147,13 +152,17 @@ class CreatePlots:
         for ax in [ax12, ax22, ax42, ax52]:
             ax.axes.yaxis.set_ticklabels([])
 
-        # Set common y-limit for y-axis
+        # Set common y-limit for y-axis - revenue
         for ax in [ax12, ax22, ax32, ax42, ax52, ax62]:
-            ax.set_ylim([-3.5e6, 3.5e6])
+            ax.set_ylim([-3.7e6, 3.7e6])
+
+        # Set common y-limit for y-axis - baseline
+        for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
+            ax.set_ylim([0.96, 1.03])
 
         # Use scientific notation for revenue
-        ax32.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
-        ax62.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        # ax32.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        # ax62.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
 
         # Format ticks
         ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
@@ -168,56 +177,58 @@ class CreatePlots:
 
         # Change fontsize
         for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax32, ax62]:
-            ax.tick_params(labelsize=7)
+            ax.tick_params(labelsize=7, which='both')
 
-        ax32.yaxis.get_offset_text().set_size(8)
-        ax62.yaxis.get_offset_text().set_size(8)
+        ax32.yaxis.get_offset_text().set_size(7)
+        ax62.yaxis.get_offset_text().set_size(7)
 
         ax32.yaxis.get_offset_text().set(ha='left')
         ax62.yaxis.get_offset_text().set(ha='left')
 
         # Define labels
-        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=8, labelpad=0)
-        ax4.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=8, labelpad=0)
-        ax32.set_ylabel('Revenue ($)', fontsize=8, labelpad=1)
-        ax62.set_ylabel('Revenue ($)', fontsize=8, labelpad=1)
-        ax4.set_xlabel('Week', fontsize=8)
-        ax5.set_xlabel('Week', fontsize=8)
-        ax6.set_xlabel('Week', fontsize=8)
+        font_size = 8
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=font_size, labelpad=0)
+        ax4.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=font_size, labelpad=0)
+        ax32.set_ylabel('Revenue (\$)', fontsize=font_size, labelpad=1)
+        ax62.set_ylabel('Revenue (\$)', fontsize=font_size, labelpad=1)
+        ax4.set_xlabel('Week', fontsize=font_size)
+        ax5.set_xlabel('Week', fontsize=font_size)
+        ax6.set_xlabel('Week', fontsize=font_size)
 
         # Add text to denote different calibration intervals
-        ax1.set_title('1 calibration interval', fontsize=8, pad=-0.001)
-        ax2.set_title('2 calibration intervals', fontsize=8, pad=-0.001)
-        ax3.set_title('3 calibration intervals', fontsize=8, pad=-0.001)
-        ax4.set_title('4 calibration intervals', fontsize=8, pad=-0.001)
-        ax5.set_title('5 calibration intervals', fontsize=8, pad=-0.001)
-        ax6.set_title('6 calibration intervals', fontsize=8, pad=-0.001)
+        ax1.set_title('1 calibration interval', fontsize=font_size, pad=-0.001)
+        ax2.set_title('2 calibration intervals', fontsize=font_size, pad=-0.001)
+        ax3.set_title('3 calibration intervals', fontsize=font_size, pad=-0.001)
+        ax4.set_title('4 calibration intervals', fontsize=font_size, pad=-0.001)
+        ax5.set_title('5 calibration intervals', fontsize=font_size, pad=-0.001)
+        ax6.set_title('6 calibration intervals', fontsize=font_size, pad=-0.001)
 
         # Create legend
         baseline = ax2.lines[0]
         emissions = ax2.lines[1]
         lns = [baseline, emissions]
         labs = ['baseline', 'avg. emissions intensity']
-        ax2.legend(lns, labs, fontsize=6, ncol=1, frameon=False, loc='lower left', bbox_to_anchor=(0.01, -0.03))
-        ax22.legend(['revenue'], fontsize=6, ncol=1, frameon=False, loc='upper left', bbox_to_anchor=(0.01, 0.99))
+        ax2.legend(lns, labs, fontsize=5.8, ncol=1, frameon=False, loc='lower left', bbox_to_anchor=(-0.04, -0.04),
+                   labelspacing=0.1)
+        ax22.legend(['revenue'], fontsize=5.8, ncol=1, frameon=False, loc='upper left', bbox_to_anchor=(-0.04, 0.99))
 
         # Add text to denote sub-figures
-        ax1.text(49, 1.02, 'a', fontsize=9, weight='bold')
-        ax2.text(49, 1.02, 'b', fontsize=9, weight='bold')
-        ax3.text(49, 1.02, 'c', fontsize=9, weight='bold')
-        ax5.text(49, 1.02, 'e', fontsize=9, weight='bold')
-        ax4.text(49, 1.02, 'd', fontsize=9, weight='bold')
-        ax6.text(49, 1.02, 'f', fontsize=9, weight='bold')
+        # ax1.text(49, 1.02, 'a', fontsize=8, weight='bold')
+        # ax2.text(49, 1.02, 'b', fontsize=8, weight='bold')
+        # ax3.text(49, 1.02, 'c', fontsize=8, weight='bold')
+        # ax5.text(49, 1.02, 'e', fontsize=8, weight='bold')
+        # ax4.text(49, 1.02, 'd', fontsize=8, weight='bold')
+        # ax6.text(49, 1.02, 'f', fontsize=8, weight='bold')
 
         # Set figure size
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.085, top=0.95, right=0.925, wspace=0.15)
+        fig.subplots_adjust(left=0.1, top=0.95, right=0.91, wspace=0.15)
 
         # Save figures
-        fig.savefig(os.path.join(self.output_dir, 'calibration_intervals_comparison.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'calibration_intervals_comparison.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'calibration_intervals_comparison.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'calibration_intervals_comparison.png'), dpi=400, transparent=True)
 
         plt.show()
 
@@ -340,29 +351,29 @@ class CreatePlots:
         # Add legend
         lns = ax3.lines + [ax1.lines[-1], ax4.lines[-1]]
         labs = ['1 interval', '3 intervals', '6 intervals', 'revenue target', 'avg. emissions intensity']
-        ax3.legend(lns, labs, frameon=False, fontsize=7, loc=2, bbox_to_anchor=(-0.008, 1))
+        ax3.legend(lns, labs, frameon=False, fontsize=5.5, loc=2, bbox_to_anchor=(-0.008, 1))
 
         # Plot titles
         ax1.set_title('Revenue neutral', fontsize=8)
         ax2.set_title('Positive revenue target', fontsize=8)
-        ax1.title.set_position((ax1.title.get_position()[0], ax1.title.get_position()[1] - 0.05))
-        ax2.title.set_position((ax2.title.get_position()[0], ax2.title.get_position()[1] - 0.05))
+        ax1.title.set_position((ax1.title.get_position()[0], ax1.title.get_position()[1] - 0.04))
+        ax2.title.set_position((ax2.title.get_position()[0], ax2.title.get_position()[1] - 0.04))
 
         # Add axes labels
         ax3.set_xlabel('Week', fontsize=8)
         ax4.set_xlabel('Week', fontsize=8)
 
         ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=8)
-        ax3.set_ylabel('Revenue ($)', fontsize=8)
+        ax3.set_ylabel('Revenue (\$)', fontsize=8)
 
         # Add text to denote sub-figures
-        ax1.text(50.8, 0.965, 'a', fontsize=9, weight='bold')
-        ax2.text(50.8, 0.965, 'b', fontsize=9, weight='bold')
-        ax3.text(50.8, -0.45e7, 'c', fontsize=9, weight='bold')
-        ax4.text(50.8, -0.45e7, 'd', fontsize=9, weight='bold')
+        # ax1.text(50.8, 0.965, 'a', fontsize=8, weight='bold', usetex=False)
+        # ax2.text(50.8, 0.965, 'b', fontsize=8, weight='bold', usetex=False)
+        # ax3.text(50.8, -0.45e7, 'c', fontsize=8, weight='bold', usetex=False)
+        # ax4.text(50.8, -0.45e7, 'd', fontsize=8, weight='bold', usetex=False)
 
         # Change size of scientific notation
-        ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        # ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
         ax3.yaxis.get_offset_text().set_size(7)
         ax3.yaxis.get_offset_text().set(ha='right', va='center')
 
@@ -370,11 +381,11 @@ class CreatePlots:
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.10, top=0.95, bottom=0.12, right=0.99, wspace=0.08, hspace=0.18)
+        fig.subplots_adjust(left=0.11, top=0.95, bottom=0.12, right=0.99, wspace=0.08, hspace=0.18)
 
         # Save figures
-        fig.savefig(os.path.join(self.output_dir, 'revenue_targeting.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'revenue_targeting.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'revenue_targeting.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'revenue_targeting.png'), dpi=400, transparent=True)
 
         plt.show()
 
@@ -425,7 +436,7 @@ class CreatePlots:
 
         # Change tick label size
         for ax in [ax1, ax2]:
-            ax.tick_params(labelsize=9)
+            ax.tick_params(labelsize=7.5)
 
         # Plot revenue and baseline
         x = range(1, len(r['revenue_floor']['revenue'].values) + 1)
@@ -451,15 +462,15 @@ class CreatePlots:
         ax2.yaxis.get_offset_text().set(ha='right', va='center')
 
         # Set labels for axes
-        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=10, labelpad=0)
-        ax1.set_xlabel('Week', fontsize=10)
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=9)
+        ax1.set_xlabel('Week', fontsize=9)
 
-        ax2.set_ylabel('Revenue ($)', fontsize=10, labelpad=0)
-        ax2.set_xlabel('Week', fontsize=10)
+        ax2.set_ylabel('Revenue (\$)', fontsize=9, labelpad=0)
+        ax2.set_xlabel('Week', fontsize=9)
 
         # Add text to denote sub-figures
-        ax1.text(48, 0.97, 'a', fontsize=10, weight='bold')
-        ax2.text(48, -2.85e6, 'b', fontsize=10, weight='bold')
+        # ax1.text(0.9, 0.08, 'a', fontsize=9, weight='bold', transform=ax1.transAxes)
+        # ax2.text(0.9, 0.08, 'b', fontsize=9, weight='bold', transform=ax2.transAxes)
 
         # Set major and minor ticks
         ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
@@ -472,17 +483,17 @@ class CreatePlots:
         ax2.yaxis.set_minor_locator(plt.MultipleLocator(0.5e6))
 
         # Add legend
-        ax1.legend(['with floor', 'without floor'], fontsize=8, bbox_to_anchor=[0.5, 0.15], loc='center', frameon=False)
+        ax1.legend(['with floor', 'without floor'], fontsize=7, bbox_to_anchor=[0.5, 0.15], loc='center', frameon=False)
 
         # Set figure size
-        fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
+        fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(5.5))
 
         # Adjust subplots
-        fig.subplots_adjust(left=0.1, top=0.93, bottom=0.15, right=0.98, hspace=0.3, wspace=0.25)
+        fig.subplots_adjust(left=0.12, top=0.93, bottom=0.18, right=0.98, hspace=0.3, wspace=0.25)
 
         # Save figure
-        fig.savefig(os.path.join(self.output_dir, 'revenue_floor.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'revenue_floor.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'revenue_floor.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'revenue_floor.png'), dpi=400, transparent=True)
 
         plt.show()
 
@@ -556,12 +567,12 @@ class CreatePlots:
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex=True)
         x = range(1, len(r['3_calibration_intervals']['baselines']) + 1)
 
-        ineligible_style = {'color': self.colours['red'], 'alpha': 0.7, 'linewidth': 0.9, 'marker': 'o',
-                            'markersize': 2.5, 'markeredgewidth': 0.5, 'markerfacecolor': 'none'}
-        eligible_style = {'color': self.colours['blue'], 'alpha': 0.7, 'linewidth': 0.9, 'marker': 'o',
-                          'markersize': 2.5, 'markeredgewidth': 0.5, 'markerfacecolor': 'none'}
-        bau_style = {'color': self.colours['green'], 'alpha': 0.7, 'linewidth': 0.9, 'linestyle': '--',
-                     'marker': 'o', 'markersize': 2.5, 'markeredgewidth': 0.5, 'markerfacecolor': 'none'}
+        ineligible_style = {'color': self.colours['red'], 'alpha': 0.7, 'linewidth': 0.8, 'marker': 'o',
+                            'markersize': 1.5, 'markeredgewidth': 0.5, 'markerfacecolor': 'none'}
+        eligible_style = {'color': self.colours['blue'], 'alpha': 0.7, 'linewidth': 0.8, 'marker': 'o',
+                          'markersize': 1.5, 'markeredgewidth': 0.5, 'markerfacecolor': 'none'}
+        bau_style = {'color': self.colours['green'], 'alpha': 0.7, 'linewidth': 0.8, 'linestyle': '--',
+                     'marker': 'o', 'markersize': 1.5, 'markeredgewidth': 0.5, 'markerfacecolor': 'none'}
 
         ax1.plot(x, r['3_calibration_intervals']['baselines'].values, **ineligible_style)
         ax1.plot(x, r['renewables_eligibility']['baselines'].values, **eligible_style)
@@ -583,7 +594,7 @@ class CreatePlots:
 
         # Change tick label size
         for ax in [ax1, ax2, ax4, ax3]:
-            ax.tick_params(labelsize=7)
+            ax.tick_params(labelsize=6)
 
         # Set major and minor ticks
         ax1.yaxis.set_major_locator(plt.MultipleLocator(0.04))
@@ -601,16 +612,16 @@ class CreatePlots:
         ax3.yaxis.set_minor_locator(plt.MultipleLocator(0.02))
 
         # Include axes labels
-        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=8, labelpad=-0.1)
-        ax2.set_ylabel('Price ($/MWh)', fontsize=8, labelpad=-0.1)
-        ax4.set_ylabel('Revenue ($)', fontsize=8, labelpad=-0.1)
-        ax3.set_ylabel('Avg. emissions intensity \n (tCO$_{2}$/MWh)', fontsize=8, labelpad=-0.1)
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=7)
+        ax2.set_ylabel('Price ($/MWh)', fontsize=7)
+        ax4.set_ylabel('Revenue (\$)', fontsize=7)
+        ax3.set_ylabel('Avg. emissions intensity \n (tCO$_{2}$/MWh)', fontsize=7)
 
-        ax4.set_xlabel('Week', fontsize=8)
-        ax3.set_xlabel('Week', fontsize=8)
+        ax4.set_xlabel('Week', fontsize=7)
+        ax3.set_xlabel('Week', fontsize=7)
 
         # Add text to denote sub-figures
-        text_style = {'horizontalalignment': 'center', 'verticalalignment': 'center', 'fontsize': 9, 'weight': 'bold'}
+        text_style = {'horizontalalignment': 'center', 'verticalalignment': 'center', 'fontsize': 8, 'weight': 'bold'}
         ax1.text(0.05, 0.08, 'a', transform=ax1.transAxes, **text_style)
         ax2.text(0.05, 0.08, 'b', transform=ax2.transAxes, **text_style)
         ax3.text(0.05, 0.08, 'c', transform=ax3.transAxes, **text_style)
@@ -620,7 +631,7 @@ class CreatePlots:
         lns = ax2.lines
         lns.reverse()
         labs = ['eligible', 'ineligible']
-        ax2.legend(lns, labs, frameon=False, fontsize=7, loc='upper right',
+        ax2.legend(lns, labs, frameon=False, fontsize=6, loc='upper right',
                    # bbox_to_anchor=[0.8, 0.8],
                    )
 
@@ -629,19 +640,18 @@ class CreatePlots:
         ax3.set_ylim([0.78, 0.96])
 
         # Add BAU emissions intensity legend
-        ax3.legend([ax3.lines[-1]], ['BAU avg. emissions intensity'], frameon=False, fontsize=7, loc='center',
+        ax3.legend([ax3.lines[-1]], ['BAU avg. emissions intensity'], frameon=False, fontsize=6, loc='center',
                    bbox_to_anchor=[0.5, 0.94])
 
         # Set figure size
-        # fig.set_size_inches((self.cm_to_in(7.8), self.cm_to_in(6)))
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.11, top=0.99, bottom=0.12, right=0.99, wspace=0.2, hspace=0.15)
+        fig.subplots_adjust(left=0.13, top=0.99, bottom=0.12, right=0.99, wspace=0.25, hspace=0.15)
 
         # Save figures
-        fig.savefig(os.path.join(self.output_dir, 'renewables_eligibility.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'renewables_eligibility.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'renewables_eligibility.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'renewables_eligibility.png'), dpi=400, transparent=True)
 
         plt.show()
 
@@ -721,7 +731,7 @@ class CreatePlots:
         # Persistence-based forecast
         r = self.get_historic_energy_output_data(use_cache=True)
 
-        fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2)
+        fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex='col')
 
         # Colours for each generator
         colors = plt.cm.nipy_spectral(np.linspace(0, 1, len(r.columns)))
@@ -767,20 +777,20 @@ class CreatePlots:
             ax.plot([100, 2e6], [100, 2e6], color='k', linestyle='--', alpha=0.7, linewidth=0.7)
 
         # Axes labels
-        label_properties = {'fontsize': 9}
-        ax1.set_ylabel('Energy +1 week (MWh)', **label_properties)
-        ax2.set_ylabel('Energy +1 week (MWh)', **label_properties)
-        ax3.set_ylabel('Energy +3 weeks (MWh)', **label_properties)
-        ax4.set_ylabel('Energy +3 weeks (MWh)', **label_properties)
-        ax5.set_ylabel('Energy +6 weeks (MWh)', **label_properties)
-        ax6.set_ylabel('Energy +6 weeks (MWh)', **label_properties)
+        label_properties = {'fontsize': 6}
+        ax1.set_ylabel('+1 week (MWh)', **label_properties)
+        ax2.set_ylabel('+1 week (MWh)', **label_properties)
+        ax3.set_ylabel('+3 weeks (MWh)', **label_properties)
+        ax4.set_ylabel('+3 weeks (MWh)', **label_properties)
+        ax5.set_ylabel('+6 weeks (MWh)', **label_properties)
+        ax6.set_ylabel('+6 weeks (MWh)', **label_properties)
 
         ax5.set_xlabel('Energy (MWh)', **label_properties)
         ax6.set_xlabel('Energy (MWh)', **label_properties)
 
         # Change tick label size
         for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
-            ax.tick_params(axis='both', labelsize=8)
+            ax.tick_params(axis='both', labelsize=6)
 
         # Set major and minor ticks
         locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.2, 0.4, 0.6, 0.8), numticks=12)
@@ -793,26 +803,26 @@ class CreatePlots:
             ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
 
         # Add text to denote sub-figures
-        ax1.text(0.6e6, 180, 'a', fontsize=9, weight='bold')
-        ax2.text(0.6e6, 180, 'b', fontsize=9, weight='bold')
-        ax3.text(0.6e6, 180, 'c', fontsize=9, weight='bold')
-        ax4.text(0.6e6, 180, 'd', fontsize=9, weight='bold')
-        ax5.text(0.6e6, 180, 'e', fontsize=9, weight='bold')
-        ax6.text(0.6e6, 180, 'f', fontsize=9, weight='bold')
+        ax1.text(0.92, 0.09, 'a', fontsize=8, weight='bold', transform=ax1.transAxes)
+        ax2.text(0.92, 0.09, 'b', fontsize=8, weight='bold', transform=ax2.transAxes)
+        ax3.text(0.92, 0.09, 'c', fontsize=8, weight='bold', transform=ax3.transAxes)
+        ax4.text(0.92, 0.09, 'd', fontsize=8, weight='bold', transform=ax4.transAxes)
+        ax5.text(0.92, 0.09, 'e', fontsize=8, weight='bold', transform=ax5.transAxes)
+        ax6.text(0.92, 0.09, 'f', fontsize=8, weight='bold', transform=ax6.transAxes)
 
         # Add title to persistence and mean-based forecasts
-        ax1.set_title('Persistence-based', fontsize=9, pad=3)
-        ax2.set_title('Climatology-based', fontsize=9, pad=3)
+        ax1.set_title('Persistence-based', fontsize=7, pad=3)
+        ax2.set_title('Climatology-based', fontsize=7, pad=3)
 
         # Set figure size
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplots
-        fig.subplots_adjust(left=0.10, top=0.97, bottom=0.06, right=0.98, hspace=0.15, wspace=0.3)
+        fig.subplots_adjust(left=0.10, top=0.95, bottom=0.12, right=0.98, hspace=0.15, wspace=0.3)
 
         # Save figure
-        fig.savefig(os.path.join(self.output_dir, 'forecast_comparison.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'forecast_comparison.pdf'))
+        # fig.savefig(os.path.join(self.output_dir, 'forecast_comparison.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'forecast_comparison.png'), dpi=300, transparent=True)
 
         plt.show()
 
@@ -977,9 +987,9 @@ class CreatePlots:
 
         # Plot anticipated shock baselines
         x = range(1, 53)
-        ci_1_style = {'color': self.colours['red'], 'linewidth': 1.3, 'alpha': 0.8}
-        ci_3_style = {'color': self.colours['blue'], 'linewidth': 1.3, 'alpha': 0.8}
-        ci_6_style = {'color': self.colours['green'], 'linewidth': 1.3, 'alpha': 0.8}
+        ci_1_style = {'color': self.colours['red'], 'linewidth': 1.1, 'alpha': 0.8}
+        ci_3_style = {'color': self.colours['blue'], 'linewidth': 1.1, 'alpha': 0.8}
+        ci_6_style = {'color': self.colours['green'], 'linewidth': 1.1, 'alpha': 0.8}
         emissions_style = {'color': self.colours['purple'], 'linewidth': 0.8, 'linestyle': '--', 'alpha': 0.8}
         revenue_style = {'color': 'grey', 'linewidth': 0.8, 'linestyle': '--', 'alpha': 0.8}
         shock_style = {'color': 'k', 'linestyle': ':', 'linewidth': 0.8, 'alpha': 0.8}
@@ -1028,21 +1038,21 @@ class CreatePlots:
         # Add legend
         lns = ax2.lines[:-1] + ln_rev
         labs = ['1 interval', '3 intervals', '6 intervals', 'avg. emissions intensity', 'revenue target']
-        ax2.legend(lns, labs, fontsize=6, loc='upper right', frameon=False)
+        ax2.legend(lns, labs, fontsize=5, loc='upper right', frameon=False)
 
         # Add axes labels and plot titles
-        ax3.set_xlabel('Week', fontsize=9)
-        ax4.set_xlabel('Week', fontsize=9)
-        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=9)
-        ax3.set_ylabel('Revenue ($)', fontsize=9)
+        ax3.set_xlabel('Week', fontsize=8)
+        ax4.set_xlabel('Week', fontsize=8)
+        ax1.set_ylabel('Baseline (tCO$_{2}$/MWh)', fontsize=8)
+        ax3.set_ylabel('Revenue (\$)', fontsize=8)
         ax1.set_title('Anticipated', fontsize=8, position=(0.5, 0.97))
         ax2.set_title('Unanticipated', fontsize=8, position=(0.5, 0.97))
 
         # Add text to denote sub-figures
-        ax1.text(49.15, 0.7, 'a', fontsize=9, weight='bold')
-        ax2.text(49.15, 0.7, 'b', fontsize=9, weight='bold')
-        ax3.text(49.15, -3.4e7, 'c', fontsize=9, weight='bold')
-        ax4.text(49.15, -3.4e7, 'd', fontsize=9, weight='bold')
+        # ax1.text(49.15, 0.7, 'a', fontsize=8, weight='bold')
+        # ax2.text(49.15, 0.7, 'b', fontsize=8, weight='bold')
+        # ax3.text(49.15, -3.4e7, 'c', fontsize=8, weight='bold')
+        # ax4.text(49.15, -3.4e7, 'd', fontsize=8, weight='bold')
 
         # Format major and minor ticks
         ax1.yaxis.set_major_locator(plt.MultipleLocator(0.1))
@@ -1059,7 +1069,7 @@ class CreatePlots:
         ax4.yaxis.set_minor_locator(plt.MultipleLocator(1e7))
 
         # Use scientific notation for revenue
-        ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        # ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
         ax3.yaxis.get_offset_text().set_size(7)
         ax3.yaxis.get_offset_text().set(ha='right', va='center')
 
@@ -1075,11 +1085,11 @@ class CreatePlots:
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.09, top=0.96, bottom=0.11, right=0.99, wspace=0.07, hspace=0.15)
+        fig.subplots_adjust(left=0.10, top=0.95, bottom=0.12, right=0.99, wspace=0.08, hspace=0.18)
 
         # Save figures
-        fig.savefig(os.path.join(self.output_dir, 'emissions_intensity_shock.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'emissions_intensity_shock.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'emissions_intensity_shock.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'emissions_intensity_shock.png'), dpi=400, transparent=True)
 
         plt.show()
 
@@ -1124,7 +1134,7 @@ class CreatePlots:
 
         fig, ax1 = plt.subplots()
         ax2 = ax1.twinx()
-        line_properties = {'linewidth': 0.9, 'linestyle': '--', 'marker': 'o', 'markersize': 4,
+        line_properties = {'linewidth': 0.8, 'linestyle': '--', 'marker': 'o', 'markersize': 3,
                            'markeredgewidth': 0.6, 'markerfacecolor': 'none'}
         ln1 = ax1.plot(x, baselines, color='#3482ba', **line_properties)
 
@@ -1132,7 +1142,7 @@ class CreatePlots:
 
         # Set axes labels
         ax1.set_ylabel('Baseline SD (tCO$_{2}$/MWh)')
-        ax2.set_ylabel('Revenue SD ($)')
+        ax2.set_ylabel('Revenue SD (\$)')
         ax1.set_xlabel('Calibration intervals')
 
         # Set font size
@@ -1142,7 +1152,7 @@ class CreatePlots:
         ax2.yaxis.label.set_size(10)
 
         # Change size of scientific notation
-        ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        # ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
         ax2.yaxis.get_offset_text().set_size(9)
         ax2.yaxis.get_offset_text().set(ha='left', va='center')
 
@@ -1157,20 +1167,25 @@ class CreatePlots:
         for ax in [ax1, ax2]:
             ax.tick_params(labelsize=9)
 
+        # ax1.ticklabel_format(axis='x', useMathText=True)
+        # ax1.ticklabel_format(axis='y', useMathText=True)
+        # ax2.ticklabel_format(axis='y', useMathText=True)
+        # ax1.set_xticklabels(ax1.xaxis.get_ticklabels(), usetex=True)
+
         # Add legend
         lns = ln1 + ln2
-        ax1.legend(lns, ['baseline SD', 'revenue SD'], fontsize=9, loc='upper center', frameon=False,
+        ax1.legend(lns, ['baseline SD', 'revenue SD'], fontsize=8, loc='upper center', frameon=False,
                    bbox_to_anchor=[0.4, 1])
 
         # Set figure size
-        fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
+        fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(6.5))
 
         # Adjust subplots
-        fig.subplots_adjust(left=0.13, top=0.95, bottom=0.13, right=0.9)
+        fig.subplots_adjust(left=0.14, top=0.95, bottom=0.165, right=0.89)
 
         # Save figure
-        fig.savefig(os.path.join(self.output_dir, 'baseline_revenue_variability_comparison.png'), dpi=300)
-        fig.savefig(os.path.join(self.output_dir, 'baseline_revenue_variability_comparison.pdf'))
+        fig.savefig(os.path.join(self.output_dir, 'baseline_revenue_variability_comparison.pdf'), transparent=True)
+        fig.savefig(os.path.join(self.output_dir, 'baseline_revenue_variability_comparison.png'), dpi=400, transparent=True)
 
         plt.show()
 
@@ -1244,7 +1259,7 @@ class CreatePlots:
         # Axes labels
         label_properties = {'fontsize': 9}
         ax1.set_ylabel('Price ($/MWh)', **label_properties)
-        ax2.set_ylabel('Revenue ($)', **label_properties)
+        ax2.set_ylabel('Revenue (\$)', **label_properties)
 
         ax1.set_xlabel('Week', **label_properties)
         ax2.set_xlabel('Week', **label_properties)
@@ -1298,34 +1313,34 @@ if __name__ == '__main__':
     plots = CreatePlots(figures_output_directory)
 
     # Plot baseline and revenue for different calibration interval durations
-    r1 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
+    # r1 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
     plots.plot_calibration_interval_comparison()
 
     # Revenue targeting plot
-    r2 = plots.get_revenue_targeting_plot_data(use_cache=False)
+    # r2 = plots.get_revenue_targeting_plot_data(use_cache=False)
     plots.plot_revenue_targeting()
 
     # Revenue floor plot
-    r3 = plots.get_revenue_floor_plot_data(use_cache=False)
-    plots.plot_revenue_floor()
+    # r3 = plots.get_revenue_floor_plot_data(use_cache=False)
+    # plots.plot_revenue_floor()
 
     # Scheme eligibility
-    r4 = plots.get_scheme_eligibility_plot_data(use_cache=False)
-    plots.plot_scheme_eligibility()
+    # r4 = plots.get_scheme_eligibility_plot_data(use_cache=False)
+    # plots.plot_scheme_eligibility()
 
     # Emissions intensity shock
-    r5 = plots.get_emissions_intensity_shock_plot_data(use_cache=False)
+    # r5 = plots.get_emissions_intensity_shock_plot_data(use_cache=False)
     plots.plot_emissions_intensity_shock()
 
     # Persistence-based forecast
-    # NOTE: running this assumes MMSDM DISPATCHUNITSCADA data has been downloaded and stored within a MySQL database
-    r6 = plots.get_historic_energy_output_data(use_cache=True)
-    plots.plot_forecast_comparison()
+    # # NOTE: running this assumes MMSDM DISPATCHUNITSCADA data has been downloaded and stored within a MySQL database
+    # r6 = plots.get_historic_energy_output_data(use_cache=True)
+    # plots.plot_forecast_comparison()
 
     # Compare variability associated with baseline and scheme revenue for different calibration intervals
-    r7 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
+    # r7 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
     plots.plot_calibration_interval_baseline_revenue_variability()
 
-    # Compare prices and scheme revenue under a carbon tax and REP scheme
-    r8 = plots.get_carbon_tax_rep_scheme_comparison_plot_data(use_cache=False)
-    plots.plot_carbon_tax_rep_scheme_comparison()
+    # # Compare prices and scheme revenue under a carbon tax and REP scheme
+    # r8 = plots.get_carbon_tax_rep_scheme_comparison_plot_data(use_cache=False)
+    # plots.plot_carbon_tax_rep_scheme_comparison()
