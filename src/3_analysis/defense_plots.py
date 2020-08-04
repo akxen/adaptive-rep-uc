@@ -11,12 +11,16 @@ import MySQLdb
 import MySQLdb.cursors
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.ticker
 import matplotlib.pyplot as plt
 from matplotlib import rc
 
 # activate latex text rendering
-rc('text', usetex=True)
+# rc('text', usetex=True)
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = 'Roboto'
+matplotlib.rcParams['font.style'] = 'normal'
 
 from dotenv import load_dotenv
 
@@ -161,8 +165,8 @@ class CreatePlots:
             ax.set_ylim([0.96, 1.03])
 
         # Use scientific notation for revenue
-        # ax32.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
-        # ax62.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax32.ticklabel_format(axis='y', style='sci', scilimits=(6, 6), useMathText=True)
+        ax62.ticklabel_format(axis='y', style='sci', scilimits=(6, 6), useMathText=True)
 
         # Format ticks
         ax1.xaxis.set_major_locator(plt.MultipleLocator(10))
@@ -208,9 +212,9 @@ class CreatePlots:
         emissions = ax2.lines[1]
         lns = [baseline, emissions]
         labs = ['baseline', 'avg. emissions intensity']
-        ax2.legend(lns, labs, fontsize=5.8, ncol=1, frameon=False, loc='lower left', bbox_to_anchor=(-0.04, -0.04),
+        ax2.legend(lns, labs, fontsize=5.5, ncol=1, frameon=False, loc='lower left', bbox_to_anchor=(-0.04, -0.04),
                    labelspacing=0.1)
-        ax22.legend(['revenue'], fontsize=5.8, ncol=1, frameon=False, loc='upper left', bbox_to_anchor=(-0.04, 0.99))
+        ax22.legend(['revenue'], fontsize=5.5, ncol=1, frameon=False, loc='upper left', bbox_to_anchor=(-0.04, 0.99))
 
         # Add text to denote sub-figures
         # ax1.text(49, 1.02, 'a', fontsize=8, weight='bold')
@@ -224,7 +228,7 @@ class CreatePlots:
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplot position
-        fig.subplots_adjust(left=0.1, top=0.95, right=0.91, wspace=0.15)
+        fig.subplots_adjust(left=0.1, bottom=0.12, top=0.95, right=0.91, wspace=0.15)
 
         # Save figures
         fig.savefig(os.path.join(self.output_dir, 'calibration_intervals_comparison.pdf'), transparent=True)
@@ -373,7 +377,7 @@ class CreatePlots:
         # ax4.text(50.8, -0.45e7, 'd', fontsize=8, weight='bold', usetex=False)
 
         # Change size of scientific notation
-        # ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
         ax3.yaxis.get_offset_text().set_size(7)
         ax3.yaxis.get_offset_text().set(ha='right', va='center')
 
@@ -1152,7 +1156,7 @@ class CreatePlots:
         ax2.yaxis.label.set_size(10)
 
         # Change size of scientific notation
-        # ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax2.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
         ax2.yaxis.get_offset_text().set_size(9)
         ax2.yaxis.get_offset_text().set(ha='left', va='center')
 
@@ -1297,7 +1301,7 @@ class CreatePlots:
         fig.set_size_inches(self.cm_to_in(11.5), self.cm_to_in(7.6))
 
         # Adjust subplots
-        fig.subplots_adjust(left=0.08, top=0.94, bottom=0.15, right=0.99, hspace=0.3, wspace=0.2)
+        fig.subplots_adjust(left=0.1, top=0.94, bottom=0.15, right=0.99, hspace=0.3, wspace=0.2)
 
         # Save figure
         fig.savefig(os.path.join(self.output_dir, 'rep_vs_carbon_tax.png'), dpi=300)
@@ -1322,11 +1326,11 @@ if __name__ == '__main__':
 
     # Revenue floor plot
     # r3 = plots.get_revenue_floor_plot_data(use_cache=False)
-    # plots.plot_revenue_floor()
+    plots.plot_revenue_floor()
 
     # Scheme eligibility
     # r4 = plots.get_scheme_eligibility_plot_data(use_cache=False)
-    # plots.plot_scheme_eligibility()
+    plots.plot_scheme_eligibility()
 
     # Emissions intensity shock
     # r5 = plots.get_emissions_intensity_shock_plot_data(use_cache=False)
@@ -1335,7 +1339,7 @@ if __name__ == '__main__':
     # Persistence-based forecast
     # # NOTE: running this assumes MMSDM DISPATCHUNITSCADA data has been downloaded and stored within a MySQL database
     # r6 = plots.get_historic_energy_output_data(use_cache=True)
-    # plots.plot_forecast_comparison()
+    plots.plot_forecast_comparison()
 
     # Compare variability associated with baseline and scheme revenue for different calibration intervals
     # r7 = plots.get_calibration_interval_comparison_plot_data(use_cache=False)
@@ -1343,4 +1347,4 @@ if __name__ == '__main__':
 
     # # Compare prices and scheme revenue under a carbon tax and REP scheme
     # r8 = plots.get_carbon_tax_rep_scheme_comparison_plot_data(use_cache=False)
-    # plots.plot_carbon_tax_rep_scheme_comparison()
+    plots.plot_carbon_tax_rep_scheme_comparison()
