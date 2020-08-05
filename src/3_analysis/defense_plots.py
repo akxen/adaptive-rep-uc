@@ -1073,7 +1073,7 @@ class CreatePlots:
         ax4.yaxis.set_minor_locator(plt.MultipleLocator(1e7))
 
         # Use scientific notation for revenue
-        # ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
+        ax3.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
         ax3.yaxis.get_offset_text().set_size(7)
         ax3.yaxis.get_offset_text().set(ha='right', va='center')
 
