@@ -1,5 +1,8 @@
 # Adaptive Mechanisms to Refund Emissions Payments
-Code in this repository implements an agent-based model to investigate the design of adaptive recalibration strategies to refund emissions payments, and is principally based on the concept of a Refunded Emissions Payment (REP) scheme [1]. This model is implemented in the context of a power system, and uses data describing Australia's largest electricity transmission network, which are obtained from the following link: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1326942.svg)](https://doi.org/10.5281/zenodo.1326942).
+
+Code in this repository complements the following publication: Xenophon, A. K., & Hill, D. J. (2020). Adaptive mechanisms to refund emissions payments. Applied Energy, 278, 115689. [https://doi.org/10.1016/j.apenergy.2020.115689](https://doi.org/10.1016/j.apenergy.2020.115689)
+
+An agent-based model is used to investigate the design of adaptive recalibration strategies for the purpose of refunding emissions payments, and is principally based on the concept of a Refunded Emissions Payment (REP) scheme [1]. This model is implemented in the context of a power system, and uses data describing Australia's largest electricity transmission network, which are obtained from the following link: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1326942.svg)](https://doi.org/10.5281/zenodo.1326942).
 
 A unit commitment model is used to model the Australian National Electricity Market at hourly resolution. The scheme seeks to augment the short-run marginal costs of generators by imposing a net liability per MWh on generators under the scheme's remit of the following form:
 
